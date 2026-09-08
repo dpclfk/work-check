@@ -65,10 +65,9 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variable files
+# dotenv environment variable files (.env.example 포함, 전부 git에 안 올림)
 .env
 .env.*
-!.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -141,3 +140,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+CLAUDE.md
