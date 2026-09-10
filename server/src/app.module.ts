@@ -6,6 +6,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { DevicesModule } from './devices/devices.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { DevicesModule } from './devices/devices.module';
       inject: [ConfigService],
       useFactory: buildTypeOrmOptions,
     }),
+    AuthModule,
     TasksModule,
     NotificationsModule,
     DevicesModule,

@@ -2,8 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Task } from '../tasks/entities/task.entity';
-import { TaskCompletion } from '../tasks/entities/task-completion.entity';
+import { Task } from '../entities/task.entity';
+import { TaskCompletion } from '../entities/task-completion.entity';
+import { User } from '../entities/user.entity';
 import { getCurrentPeriodKey, isTaskDueToday } from '../tasks/utils/period-key.util';
 import { DiscordService } from '../notifications/discord.service';
 import { ExpoPushService } from '../notifications/expo-push.service';
@@ -33,8 +34,13 @@ export class ReminderService {
       now.getMinutes(),
     ).padStart(2, '0')}`;
 
-    const tasks = await this.taskRepository.find({ where: { isActive: true } });
-    const dueTasks: Task[] = [];
+    const tasks = await this.taskRepository.find({
+      where: { isActive: true },
+      relations: ['user'],
+    });
+
+    // 유저별로 미완료 할 일을 묶는다 — 알림 채널(디스코드 웹훅, 기기 목록)이 유저 단위라서
+    const dueTasksByUser = new Map<number, { user: User; tasks: Task[] }>();
 
     for (const task of tasks) {
       if (!isTaskDueToday(task, now)) continue;
@@ -44,22 +50,33 @@ export class ReminderService {
       const done = await this.completionRepository.findOne({
         where: { task: { id: task.id }, periodKey },
       });
-      if (!done) dueTasks.push(task);
+      if (done) continue;
+
+      const bucket = dueTasksByUser.get(task.userId) ?? { user: task.user, tasks: [] };
+      bucket.tasks.push(task);
+      dueTasksByUser.set(task.userId, bucket);
     }
 
-    if (dueTasks.length === 0) return;
+    if (dueTasksByUser.size === 0) return;
 
-    // 디스코드 알림이 가끔 안 올 때를 대비해, 같은 내용을 앱 푸시로도 같이 보냄
-    const deviceTokens = await this.devicesService.findAllTokens();
+    for (const { user, tasks: dueTasks } of dueTasksByUser.values()) {
+      // 디스코드 알림이 가끔 안 올 때를 대비해, 같은 내용을 앱 푸시로도 같이 보냄
+      const deviceTokens = await this.devicesService.findAllTokens(user.id);
 
-    for (const task of dueTasks) {
-      this.logger.log(`[알림] "${task.title}" 미완료 - 디스코드 + 앱 푸시로 알림 전송`);
-      const summary = `${task.title} 아직 완료하지 않았어요! (주기: ${task.cycleType})`;
+      for (const task of dueTasks) {
+        this.logger.log(
+          `[알림] "${task.title}" (userId=${user.id}) 미완료 - 디스코드 + 앱 푸시로 알림 전송`,
+        );
+        const summary = `${task.title} 아직 완료하지 않았어요! (주기: ${task.cycleType})`;
 
-      await Promise.all([
-        this.discordService.sendMessage(`⏰ **${task.title}** 아직 완료하지 않았어요! (주기: ${task.cycleType})`),
-        this.expoPushService.sendToTokens(deviceTokens, '할 일 알림', `⏰ ${summary}`),
-      ]);
+        await Promise.all([
+          this.discordService.sendMessage(
+            user.discordWebhookUrl,
+            `⏰ **${task.title}** 아직 완료하지 않았어요! (주기: ${task.cycleType})`,
+          ),
+          this.expoPushService.sendToTokens(deviceTokens, '할 일 알림', `⏰ ${summary}`),
+        ]);
+      }
     }
   }
 }

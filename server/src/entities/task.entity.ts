@@ -2,11 +2,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { TaskCompletion } from './task-completion.entity';
+import { User } from './user.entity';
 
 export enum TaskCycle {
   DAILY = 'DAILY',
@@ -18,6 +21,13 @@ export enum TaskCycle {
 export class Task {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column()
+  userId: number;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @Column({ length: 100 })
   title: string;

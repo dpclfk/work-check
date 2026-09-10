@@ -1,8 +1,6 @@
-version: '3.8'
-
 # 로컬 개발 / OCI 배포 공통으로 쓰는 구성.
-# MySQL, 서버 모두 컨테이너로 띄운다 (호스트에 네이티브로 설치된 MySQL은 안 씀).
-# 버전은 로컬 macOS(Homebrew) 기준: MySQL 9.7.2, Node 24.20.0(server/Dockerfile).
+# MySQL, 서버 모두 컨테이너로 띄운다.
+# 버전: MySQL 9.7.2, Node 24.20.0(server/Dockerfile)
 
 services:
   mysql:
@@ -37,6 +35,9 @@ services:
       # .env의 DB_HOST/DB_PORT를 오버라이드.
       DB_HOST: mysql
       DB_PORT: '3306'
+      # Alpine 기본 타임존은 UTC라서, 이게 없으면 reminderTime("21:00" 등) 비교가
+      # 실제로는 UTC 기준으로 동작해 한국시간이랑 9시간 밀림.
+      TZ: Asia/Seoul
     ports:
       - '3000:3000'
     depends_on:

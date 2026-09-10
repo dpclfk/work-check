@@ -8,7 +8,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { TaskCycle } from '../entities/task.entity';
+import { TaskCycle } from '../../entities/task.entity';
 
 export class CreateTaskDto {
   @IsString()

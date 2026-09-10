@@ -1,4 +1,4 @@
-import { TaskCycle } from '../entities/task.entity';
+import { TaskCycle } from '../../entities/task.entity';
 
 /** 주어진 날짜가 속한 주기를 식별하는 키를 만든다. */
 export function getCurrentPeriodKey(cycleType: TaskCycle, date: Date = new Date()): string {
