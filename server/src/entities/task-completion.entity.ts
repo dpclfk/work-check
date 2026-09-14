@@ -1,15 +1,11 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Task } from './task.entity';
 
 @Entity('task_completions')
-@Index(['task', 'completeTime'], { unique: true })
+// task+completeTime 유니크는 안 씀 — completeTime이 이제 실제 완료 순간(분 단위)이라
+// 값이 매번 달라서 "정확히 일치"로는 중복 방지가 안 됨. 중복 체크는
+// getCurrentPeriodRange()로 구한 범위 안에 있는지로 서비스 코드에서 함.
+@Index(['task'])
 export class TaskCompletion {
   @PrimaryGeneratedColumn()
   id: number;
@@ -17,8 +13,7 @@ export class TaskCompletion {
   @ManyToOne(() => Task, (task) => task.completions, { onDelete: 'CASCADE' })
   task: Task;
 
-  // 완료가 속한 주기를 식별하는 키
-  // DAILY: 2026-09-08 / WEEKLY: 2026-W36 / MONTHLY: 2026-09 / ONCE: dueDate 그대로
+  // 실제로 완료한 순간. 'YYYY-MM-DD HH:mm' (해당 유저 타임존 기준 벽시계 시각)
   @Column({ length: 20 })
   completeTime: string;
 

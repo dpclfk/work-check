@@ -5,7 +5,7 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 50, unique: true })
+  @Column({ length: 255, unique: true })
   email: string;
 
   // PBKDF2 결과. 형식: "{iterations}:{salt}:{hash}" (전부 hex)

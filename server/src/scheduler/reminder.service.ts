@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { And, In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Task } from '../entities/task.entity';
 import { TaskCompletion } from '../entities/task-completion.entity';
 import { UserSetting } from '../entities/user-setting.entity';
-import { getCurrentPeriodKey, getWallClock, isTaskDueToday } from '../tasks/utils/period-key.util';
+import { getCurrentPeriodRange, getWallClock, isTaskDueToday } from '../tasks/utils/period-key.util';
 import { DiscordService } from '../notifications/discord.service';
 import { ExpoPushService } from '../notifications/expo-push.service';
 import { DevicesService } from '../devices/devices.service';
@@ -37,7 +37,7 @@ export class ReminderService {
   async checkTasks() {
     const now = new Date();
 
-    const tasks = await this.taskRepository.find();
+    const tasks = await this.taskRepository.find({ where: { isActive: true } });
     if (tasks.length === 0) return;
 
     // 유저별 설정(타임존, 디스코드)을 한 번에 미리 불러옴 — task마다 따로 조회 안 하려고
@@ -56,9 +56,10 @@ export class ReminderService {
       const currentHour = getWallClock(now, timezone).hour;
       if (currentHour < task.remindTime) continue;
 
-      const completeTime = getCurrentPeriodKey(task, timezone, now);
+      // [start, end) — end는 다음 주기의 시작이라 포함하면 안 됨
+      const { start, end } = getCurrentPeriodRange(task, timezone, now);
       const done = await this.completionRepository.findOne({
-        where: { task: { id: task.id }, completeTime },
+        where: { task: { id: task.id }, completeTime: And(MoreThanOrEqual(start), LessThan(end)) },
       });
       if (done) continue;
 
@@ -78,7 +79,7 @@ export class ReminderService {
         this.logger.log(
           `[알림] "${task.name}" (userId=${userId}) 미완료 - 디스코드 + 앱 푸시로 알림 전송`,
         );
-        const summary = `${task.name} 아직 완료하지 않았어요! (주기: ${task.cycle})`;
+        const summary = `${task.name} 아직 완료하지 않았어요! (주기: ${task.cycleType})`;
 
         await Promise.all([
           setting?.discordAlarm

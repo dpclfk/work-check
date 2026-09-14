@@ -2,6 +2,13 @@ import { FormEvent, useEffect, useState } from 'react';
 import { CreateTaskInput, Task, TaskCycle, tasksApi } from '../api/tasks';
 import { useAuth } from '../auth/AuthContext';
 
+function extractErrorMessage(err: unknown, fallback: string): string {
+  const message = (err as any)?.response?.data?.message;
+  if (Array.isArray(message)) return message.join(', ');
+  if (typeof message === 'string') return message;
+  return fallback;
+}
+
 const CYCLE_LABEL: Record<TaskCycle, string> = {
   DAILY: '매일',
   WEEKLY: '매주',
@@ -11,8 +18,8 @@ const CYCLE_LABEL: Record<TaskCycle, string> = {
 
 const DEFAULT_FORM: CreateTaskInput = {
   name: '',
-  cycle: 'DAILY',
-  deadLine: 21,
+  cycleType: 'DAILY',
+  deadLine: 22,
   remindTime: 21,
 };
 
@@ -25,6 +32,7 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<CreateTaskInput>(DEFAULT_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -41,11 +49,20 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    setFormError(null);
     if (!form.name.trim()) return;
-    if (form.cycle === 'ONCE' && !form.dueDate) return;
-    await tasksApi.create(form);
-    setForm(DEFAULT_FORM);
-    await loadTasks();
+    if (form.cycleType === 'ONCE' && !form.dueDate) return;
+    if (form.deadLine === form.remindTime) {
+      setFormError('알림 시각과 마감 시각은 같을 수 없습니다.');
+      return;
+    }
+    try {
+      await tasksApi.create(form);
+      setForm(DEFAULT_FORM);
+      await loadTasks();
+    } catch (err) {
+      setFormError(extractErrorMessage(err, '할 일을 추가하지 못했습니다.'));
+    }
   };
 
   const handleComplete = async (id: number) => {
@@ -55,6 +72,11 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
 
   const handleRemove = async (id: number) => {
     await tasksApi.remove(id);
+    await loadTasks();
+  };
+
+  const handleToggleActive = async (task: Task) => {
+    await tasksApi.setActive(task.id, !task.isActive);
     await loadTasks();
   };
 
@@ -80,15 +102,15 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
         <select
-          value={form.cycle}
-          onChange={(e) => setForm({ ...form, cycle: e.target.value as TaskCycle })}
+          value={form.cycleType}
+          onChange={(e) => setForm({ ...form, cycleType: e.target.value as TaskCycle })}
         >
           <option value="DAILY">매일</option>
           <option value="WEEKLY">매주</option>
           <option value="MONTHLY">매월</option>
           <option value="ONCE">한 번만</option>
         </select>
-        {form.cycle === 'ONCE' && (
+        {form.cycleType === 'ONCE' && (
           <input
             type="date"
             value={form.dueDate ?? ''}
@@ -119,20 +141,25 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
         </label>
         <button type="submit">추가</button>
       </form>
+      {formError && <p className="auth-error">{formError}</p>}
 
       {loading ? (
         <p>불러오는 중...</p>
       ) : (
         <ul className="task-list">
           {tasks.map((task) => (
-            <li key={task.id} className="task-item">
+            <li key={task.id} className={`task-item${task.isActive ? '' : ' task-item-inactive'}`}>
               <div>
                 <strong>{task.name}</strong>
-                <span className="badge">{CYCLE_LABEL[task.cycle]}</span>
+                <span className="badge">{CYCLE_LABEL[task.cycleType]}</span>
                 <span className="time">{task.deadLine}시까지</span>
+                {!task.isActive && <span className="badge badge-off">꺼짐</span>}
               </div>
               <div className="actions">
                 <button onClick={() => handleComplete(task.id)}>완료</button>
+                <button onClick={() => handleToggleActive(task)}>
+                  {task.isActive ? '끄기' : '켜기'}
+                </button>
                 <button onClick={() => handleRemove(task.id)}>삭제</button>
               </div>
             </li>

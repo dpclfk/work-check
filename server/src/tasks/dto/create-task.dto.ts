@@ -1,4 +1,14 @@
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { TaskCycle } from '../../entities/task.entity';
 
 export class CreateTaskDto {
@@ -11,7 +21,7 @@ export class CreateTaskDto {
   name: string;
 
   @IsEnum(TaskCycle)
-  cycle: TaskCycle;
+  cycleType: TaskCycle;
 
   // WEEKLY: 0(일)~6(토), MONTHLY: 1~31
   @IsOptional()
@@ -34,4 +44,8 @@ export class CreateTaskDto {
   @Min(0)
   @Max(23)
   remindTime: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

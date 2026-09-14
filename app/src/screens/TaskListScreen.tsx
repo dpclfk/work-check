@@ -47,6 +47,11 @@ export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
     await loadTasks();
   };
 
+  const handleToggleActive = async (task: Task) => {
+    await tasksApi.setActive(task.id, !task.isActive);
+    await loadTasks();
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -70,16 +75,24 @@ export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={<Text style={styles.empty}>등록된 할 일이 없습니다.</Text>}
         renderItem={({ item }) => (
-          <View style={styles.item}>
+          <View style={[styles.item, !item.isActive && styles.itemInactive]}>
             <View style={styles.itemText}>
-              <Text style={styles.itemTitle}>{item.name}</Text>
+              <Text style={styles.itemTitle}>
+                {item.name}
+                {!item.isActive && '  (꺼짐)'}
+              </Text>
               <Text style={styles.itemMeta}>
-                {CYCLE_LABEL[item.cycle]} · {item.deadLine}시까지
+                {CYCLE_LABEL[item.cycleType]} · {item.deadLine}시까지
               </Text>
             </View>
-            <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item.id)}>
-              <Text style={styles.completeButtonText}>완료</Text>
-            </TouchableOpacity>
+            <View style={styles.itemActions}>
+              <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item.id)}>
+                <Text style={styles.completeButtonText}>완료</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toggleButton} onPress={() => handleToggleActive(item)}>
+                <Text style={styles.toggleButtonText}>{item.isActive ? '끄기' : '켜기'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -154,6 +167,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
   },
+  itemInactive: {
+    opacity: 0.6,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   completeButton: {
     backgroundColor: '#4338ca',
     paddingHorizontal: 14,
@@ -162,6 +182,16 @@ const styles = StyleSheet.create({
   },
   completeButtonText: {
     color: 'white',
+    fontWeight: '600',
+  },
+  toggleButton: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  toggleButtonText: {
+    color: '#374151',
     fontWeight: '600',
   },
 });

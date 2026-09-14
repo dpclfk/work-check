@@ -234,6 +234,15 @@ body {
   font-size: 12px;
 }
 
+.badge-off {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.task-item-inactive {
+  opacity: 0.6;
+}
+
 .time {
   margin-left: 8px;
   color: #6b7280;

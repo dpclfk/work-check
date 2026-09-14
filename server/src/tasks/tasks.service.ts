@@ -1,12 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { And, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Task } from '../entities/task.entity';
 import { TaskCompletion } from '../entities/task-completion.entity';
 import { UserSetting } from '../entities/user-setting.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { getCurrentPeriodKey } from './utils/period-key.util';
+import { formatCompleteTime, getCurrentPeriodRange } from './utils/period-key.util';
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
 
@@ -22,6 +22,7 @@ export class TasksService {
   ) {}
 
   create(userId: number, dto: CreateTaskDto) {
+    this.assertDeadLineNotEqualRemindTime(dto.deadLine, dto.remindTime);
     const task = this.taskRepository.create({ ...dto, userId });
     return this.taskRepository.save(task);
   }
@@ -39,6 +40,9 @@ export class TasksService {
   async update(userId: number, id: number, dto: UpdateTaskDto) {
     const task = await this.findOne(userId, id);
     Object.assign(task, dto);
+    // dto가 둘 중 하나만 바꿔도(PATCH) 병합된 최종 값 기준으로 체크해야
+    // "기존 deadLine이랑 새로 바꾼 remindTime이 겹치는" 경우도 잡힘
+    this.assertDeadLineNotEqualRemindTime(task.deadLine, task.remindTime);
     return this.taskRepository.save(task);
   }
 
@@ -62,14 +66,24 @@ export class TasksService {
     // "오늘"의 기준을 이 유저의 타임존으로 계산 — 서버 시간 기준이면
     // 유저 타임존과 자정 근처에서 하루가 어긋날 수 있음
     const setting = await this.userSettingRepository.findOne({ where: { userId } });
-    const completeTime = getCurrentPeriodKey(task, setting?.timezone ?? DEFAULT_TIMEZONE);
+    const timezone = setting?.timezone ?? DEFAULT_TIMEZONE;
+    const now = new Date();
 
+    // [start, end) — end는 다음 주기의 시작이라 포함하면 안 됨
+    const { start, end } = getCurrentPeriodRange(task, timezone, now);
     const existing = await this.completionRepository.findOne({
-      where: { task: { id: task.id }, completeTime },
+      where: { task: { id: task.id }, completeTime: And(MoreThanOrEqual(start), LessThan(end)) },
     });
     if (existing) return existing;
 
+    const completeTime = formatCompleteTime(now, timezone);
     const completion = this.completionRepository.create({ task, completeTime });
     return this.completionRepository.save(completion);
+  }
+
+  private assertDeadLineNotEqualRemindTime(deadLine: number, remindTime: number) {
+    if (deadLine === remindTime) {
+      throw new BadRequestException('deadLine과 remindTime은 같은 시각일 수 없습니다.');
+    }
   }
 }
