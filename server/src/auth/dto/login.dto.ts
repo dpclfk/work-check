@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsString } from 'class-validator';
-import { ClientType } from '../../entities/refresh-token.entity';
+import { ClientType } from '../../entities/refresh.entity';
 
 export class LoginDto {
   @IsEmail()

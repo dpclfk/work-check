@@ -3,9 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Task } from '../entities/task.entity';
 import { TaskCompletion } from '../entities/task-completion.entity';
+import { UserSetting } from '../entities/user-setting.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { getCurrentPeriodKey } from './utils/period-key.util';
+
+const DEFAULT_TIMEZONE = 'Asia/Seoul';
 
 @Injectable()
 export class TasksService {
@@ -14,6 +17,8 @@ export class TasksService {
     private readonly taskRepository: Repository<Task>,
     @InjectRepository(TaskCompletion)
     private readonly completionRepository: Repository<TaskCompletion>,
+    @InjectRepository(UserSetting)
+    private readonly userSettingRepository: Repository<UserSetting>,
   ) {}
 
   create(userId: number, dto: CreateTaskDto) {
@@ -47,21 +52,24 @@ export class TasksService {
     const task = await this.findOne(userId, id);
     return this.completionRepository.find({
       where: { task: { id: task.id } },
-      order: { completedAt: 'DESC' },
+      order: { createdAt: 'DESC' },
     });
   }
 
   /** 현재 주기에 대한 완료 처리 (이미 완료했으면 기존 기록 반환) */
   async complete(userId: number, id: number) {
     const task = await this.findOne(userId, id);
-    const periodKey = getCurrentPeriodKey(task.cycleType);
+    // "오늘"의 기준을 이 유저의 타임존으로 계산 — 서버 시간 기준이면
+    // 유저 타임존과 자정 근처에서 하루가 어긋날 수 있음
+    const setting = await this.userSettingRepository.findOne({ where: { userId } });
+    const completeTime = getCurrentPeriodKey(task, setting?.timezone ?? DEFAULT_TIMEZONE);
 
     const existing = await this.completionRepository.findOne({
-      where: { task: { id: task.id }, periodKey },
+      where: { task: { id: task.id }, completeTime },
     });
     if (existing) return existing;
 
-    const completion = this.completionRepository.create({ task, periodKey });
+    const completion = this.completionRepository.create({ task, completeTime });
     return this.completionRepository.save(completion);
   }
 }

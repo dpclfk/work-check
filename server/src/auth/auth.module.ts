@@ -3,7 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { User } from '../entities/user.entity';
-import { RefreshToken } from '../entities/refresh-token.entity';
+import { UserSetting } from '../entities/user-setting.entity';
+import { Refresh } from '../entities/refresh.entity';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PasswordService } from './password.service';
@@ -11,7 +12,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, RefreshToken]),
+    TypeOrmModule.forFeature([User, UserSetting, Refresh]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

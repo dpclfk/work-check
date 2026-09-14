@@ -9,7 +9,7 @@ import {
 import { Task } from './task.entity';
 
 @Entity('task_completions')
-@Index(['task', 'periodKey'], { unique: true })
+@Index(['task', 'completeTime'], { unique: true })
 export class TaskCompletion {
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,10 +18,10 @@ export class TaskCompletion {
   task: Task;
 
   // 완료가 속한 주기를 식별하는 키
-  // DAILY: 2026-09-08 / WEEKLY: 2026-W36 / MONTHLY: 2026-09
+  // DAILY: 2026-09-08 / WEEKLY: 2026-W36 / MONTHLY: 2026-09 / ONCE: dueDate 그대로
   @Column({ length: 20 })
-  periodKey: string;
+  completeTime: string;
 
   @CreateDateColumn()
-  completedAt: Date;
+  createdAt: Date;
 }

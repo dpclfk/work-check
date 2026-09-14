@@ -1,12 +1,16 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { DevicePlatform } from '../../entities/device.entity';
 
 export class RegisterDeviceDto {
   @IsString()
   @MaxLength(255)
-  expoPushToken: string;
+  deviceToken: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  platform?: string;
+  @IsEnum(DevicePlatform)
+  platform?: DevicePlatform;
+
+  @IsOptional()
+  @IsBoolean()
+  deviceAlarm?: boolean;
 }

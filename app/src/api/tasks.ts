@@ -1,15 +1,16 @@
 import { apiClient } from './client';
 
-export type TaskCycle = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type TaskCycle = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE';
 
 export interface Task {
   id: number;
-  title: string;
-  description?: string;
-  cycleType: TaskCycle;
+  subCategoryId?: number;
+  name: string;
+  cycle: TaskCycle;
   cycleValue?: number;
-  reminderTime: string;
-  isActive: boolean;
+  dueDate?: string;
+  deadLine: number;
+  remindTime: number;
   createdAt: string;
   updatedAt: string;
 }

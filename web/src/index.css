@@ -14,6 +14,188 @@ body {
   padding: 32px 16px;
 }
 
+.hour-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.hour-input input {
+  width: 48px;
+}
+
+.settings-checkbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.settings-checkbox .settings-hint {
+  flex-basis: 100%;
+  font-weight: normal;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.user-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-email {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.logout-button {
+  background: none;
+  border: 1px solid #d1d5db;
+}
+
+/* 로그인/회원가입 화면 */
+.auth-page {
+  max-width: 360px;
+  margin: 80px auto;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.auth-page h1 {
+  margin-bottom: 24px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-form input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.auth-form button[type='submit'] {
+  background: #4338ca;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-form button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 0;
+}
+
+.auth-toggle {
+  margin-top: 16px;
+  background: none;
+  border: none;
+  color: #4338ca;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* 설정 화면 */
+.settings-email {
+  color: #6b7280;
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 20px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+}
+
+.settings-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.settings-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-input-row input,
+.settings-input-row select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.settings-input-row button {
+  white-space: nowrap;
+}
+
+.settings-hint {
+  font-weight: normal;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.settings-saved {
+  color: #059669;
+  font-size: 13px;
+  margin: 0;
+}
+
+.settings-save-button {
+  align-self: flex-start;
+  background: #4338ca;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-save-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .task-form {
   display: flex;
   gap: 8px;

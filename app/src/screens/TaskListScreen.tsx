@@ -9,14 +9,21 @@ import {
   View,
 } from 'react-native';
 import { Task, TaskCycle, tasksApi } from '../api/tasks';
+import { useAuth } from '../auth/AuthContext';
 
 const CYCLE_LABEL: Record<TaskCycle, string> = {
   DAILY: '매일',
   WEEKLY: '매주',
   MONTHLY: '매월',
+  ONCE: '한 번만',
 };
 
-export function TaskListScreen() {
+interface TaskListScreenProps {
+  onOpenSettings: () => void;
+}
+
+export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
+  const { user, logout } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,7 +49,20 @@ export function TaskListScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Text style={styles.title}>할 일 체크리스트</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>할 일 체크리스트</Text>
+          <Text style={styles.userEmail}>{user?.email}</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={onOpenSettings}>
+            <Text style={styles.logoutText}>설정</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={logout}>
+            <Text style={styles.logoutText}>로그아웃</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       <FlatList
         data={tasks}
         keyExtractor={(task) => String(task.id)}
@@ -52,9 +72,9 @@ export function TaskListScreen() {
         renderItem={({ item }) => (
           <View style={styles.item}>
             <View style={styles.itemText}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemTitle}>{item.name}</Text>
               <Text style={styles.itemMeta}>
-                {CYCLE_LABEL[item.cycleType]} · {item.reminderTime}까지
+                {CYCLE_LABEL[item.cycle]} · {item.deadLine}시까지
               </Text>
             </View>
             <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item.id)}>
@@ -72,12 +92,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f6f8',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  userEmail: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  logoutText: {
+    color: '#4338ca',
+    fontSize: 13,
+    fontWeight: '600',
   },
   listContent: {
     padding: 16,

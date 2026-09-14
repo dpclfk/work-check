@@ -1,40 +1,37 @@
-import {
-  IsBoolean,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  Matches,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { TaskCycle } from '../../entities/task.entity';
 
 export class CreateTaskDto {
-  @IsString()
-  @MaxLength(100)
-  title: string;
-
   @IsOptional()
+  @IsInt()
+  subCategoryId?: number;
+
   @IsString()
-  @MaxLength(500)
-  description?: string;
+  @MaxLength(50)
+  name: string;
 
   @IsEnum(TaskCycle)
-  cycleType: TaskCycle;
+  cycle: TaskCycle;
 
+  // WEEKLY: 0(일)~6(토), MONTHLY: 1~31
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(31)
   cycleValue?: number;
 
+  // ONCE일 때만 씀. 'YYYY-MM-DD'
   @IsOptional()
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
-    message: 'reminderTime은 HH:mm 형식이어야 합니다.',
-  })
-  reminderTime?: string;
+  @IsDateString()
+  dueDate?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  deadLine: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  remindTime: number;
 }
