@@ -59,14 +59,18 @@ export function LoginScreen() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
+          maxLength={254}
         />
         <TextInput
           style={styles.input}
-          placeholder="비밀번호 (8자 이상)"
+          placeholder="비밀번호"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
+        {mode === 'register' && (
+          <Text style={styles.hint}>비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.</Text>
+        )}
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -103,6 +107,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
+  hint: { color: '#9ca3af', fontSize: 12, marginTop: -4 },
   error: { color: '#dc2626', fontSize: 13 },
   submitButton: {
     backgroundColor: '#4338ca',

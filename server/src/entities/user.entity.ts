@@ -5,7 +5,8 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 255, unique: true })
+  // RFC 5321 기준 이메일 실제 최대 길이(254자)에 맞춤
+  @Column({ length: 254, unique: true })
   email: string;
 
   // PBKDF2 결과. 형식: "{iterations}:{salt}:{hash}" (전부 hex)

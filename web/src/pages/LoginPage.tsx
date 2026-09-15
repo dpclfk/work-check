@@ -44,16 +44,20 @@ export function LoginPage() {
           placeholder="이메일"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          maxLength={254}
           required
         />
         <input
           type="password"
-          placeholder="비밀번호 (8자 이상)"
+          placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           minLength={8}
           required
         />
+        {mode === 'register' && (
+          <p className="auth-hint">비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.</p>
+        )}
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={loading}>
           {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}

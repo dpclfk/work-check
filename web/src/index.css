@@ -116,6 +116,13 @@ body {
   margin: 0;
 }
 
+.auth-hint {
+  color: #9ca3af;
+  font-size: 12px;
+  margin: -4px 0 0;
+  text-align: left;
+}
+
 .auth-toggle {
   margin-top: 16px;
   background: none;
