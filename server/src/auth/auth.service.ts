@@ -54,7 +54,11 @@ export class AuthService {
     const passwordValid = await this.passwordService.verify(dto.password, user.password);
     if (!passwordValid) throw invalidCredentials();
 
-    return this.issueTokens(user, dto.clientType);
+    // login()만 user를 같이 내려줌 — 웹/앱이 로그인 직후 /auth/me 없이도
+    // 화면에 이메일을 바로 표시할 수 있게. refresh()는 이 정보가 필요 없음
+    // (기존에 저장해둔 값을 그대로 재사용하기 때문)
+    const tokens = await this.issueTokens(user, dto.clientType);
+    return { ...tokens, user: { id: user.id, email: user.email } };
   }
 
   async refresh(dto: RefreshDto) {
@@ -137,10 +141,6 @@ export class AuthService {
       }),
     );
 
-    return {
-      accessToken,
-      refreshToken: rawRefreshToken,
-      user: { id: user.id, email: user.email },
-    };
+    return { accessToken, refreshToken: rawRefreshToken };
   }
 }
