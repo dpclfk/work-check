@@ -3,7 +3,6 @@ import { JwtService } from '@nestjs/jwt';
 
 export interface AuthenticatedRequestUser {
   userId: number;
-  email: string;
 }
 
 @Injectable()
@@ -21,8 +20,8 @@ export class JwtAuthGuard implements CanActivate {
     const token = authHeader.slice('Bearer '.length);
 
     try {
-      const payload = this.jwtService.verify<{ sub: number; email: string }>(token);
-      const user: AuthenticatedRequestUser = { userId: payload.sub, email: payload.email };
+      const payload = this.jwtService.verify<{ sub: number }>(token);
+      const user: AuthenticatedRequestUser = { userId: payload.sub };
       request.user = user;
       return true;
     } catch {

@@ -125,7 +125,7 @@ export class AuthService {
   }
 
   private async issueTokens(user: User, clientType: ClientType) {
-    const accessToken = this.jwtService.sign({ sub: user.id, email: user.email });
+    const accessToken = this.jwtService.sign({ sub: user.id });
 
     const rawRefreshToken = generateRefreshToken();
     await this.refreshRepository.save(
