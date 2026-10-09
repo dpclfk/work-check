@@ -82,7 +82,17 @@ export class AuthService {
 
   async logout(dto: RefreshDto) {
     const tokenHash = hashRefreshToken(dto.refreshToken);
-    await this.refreshRepository.update({ refreshToken: tokenHash }, { revokeAt: new Date() });
+    const existing = await this.refreshRepository.findOne({ where: { refreshToken: tokenHash } });
+
+    if (!existing) {
+      throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
+    }
+    if (existing.revokeAt) {
+      throw new UnauthorizedException('이미 로그아웃 되었습니다.');
+    }
+
+    existing.revokeAt = new Date();
+    await this.refreshRepository.save(existing);
     return { success: true };
   }
 
@@ -128,6 +138,7 @@ export class AuthService {
     };
   }
 
+  // User 테이블에서 다른것도 쓰게될 경우를 대비해 User 테이블 전체를 받음
   private async issueTokens(user: User, clientType: ClientType) {
     const accessToken = this.jwtService.sign({ sub: user.id });
 

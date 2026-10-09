@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { DevicesService } from './devices.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
+import { UpdateDeviceAlarmDto } from './dto/update-device-alarm.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../auth/jwt-auth.guard';
@@ -14,6 +15,16 @@ export class DevicesController {
   @Post()
   register(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: RegisterDeviceDto) {
     return this.devicesService.register(user.userId, dto);
+  }
+
+  // 이 기기의 알림 켜기/끄기만 변경 (토큰/플랫폼은 그대로)
+  @Patch(':token')
+  updateAlarm(
+    @CurrentUser() user: AuthenticatedRequestUser,
+    @Param('token') token: string,
+    @Body() dto: UpdateDeviceAlarmDto,
+  ) {
+    return this.devicesService.updateAlarm(user.userId, token, dto.deviceAlarm);
   }
 
   // 로그아웃/알림 끄기 등으로 더 이상 안 쓰는 토큰 제거

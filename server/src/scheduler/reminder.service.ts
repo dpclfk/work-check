@@ -5,12 +5,12 @@ import { And, In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Task } from '../entities/task.entity';
 import { TaskCompletion } from '../entities/task-completion.entity';
 import { UserSetting } from '../entities/user-setting.entity';
-import { getCurrentPeriodRange, getWallClock, isTaskDueToday } from '../tasks/utils/period-key.util';
+import { KST_TIMEZONE, getCurrentPeriodRange, getDeadlineOccurrences, getWallClock } from '../tasks/utils/period-key.util';
 import { DiscordService } from '../notifications/discord.service';
 import { ExpoPushService } from '../notifications/expo-push.service';
 import { DevicesService } from '../devices/devices.service';
 
-const DEFAULT_TIMEZONE = 'Asia/Seoul';
+const ALARM_LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class ReminderService {
@@ -28,36 +28,40 @@ export class ReminderService {
     private readonly devicesService: DevicesService,
   ) {}
 
-  // 매시 정각 실행. 운영 시 필요한 주기로 조정.
-  // TODO: 지금은 remindTime이 지나면 매시간 반복 알림이 간다.
-  //       주기당 1회만 보내려면 알림 발송 여부를 별도로 기록해서 체크해야 함.
-  // TODO: deadLine은 아직 로직에 안 쓰임 — remindTime만으로 "언제부터 알릴지" 판단 중.
-  //       새벽 마감(자정 넘어가는 경우) 처리는 별도로 재설계 예정.
+  // 매시 정각 실행.
+  // Task.deadLine/remindTime/cycleValue/dueDate가 전부 한국시간(KST) 기준으로
+  // 저장돼 있어서(TasksService.create/update에서 유저 타임존 -> KST로 환산),
+  // 여기서는 더 이상 유저별 타임존을 몰라도 "언제가 마감인지"를 계산할 수 있음.
+
+  // 알림 1회 제한은 remindTime을 "그 시각에만" 정확히 일치시키는 걸로 자연스럽게
+  // 보장됨(예전엔 remindTime이 지나면 매시간 반복 알림이 갔음) — 같은 주기 안에서
+  // remindTime 시각은 한 번만 돌아오기 때문.
   @Cron(CronExpression.EVERY_HOUR)
   async checkTasks() {
     const now = new Date();
+    const currentHourKst = getWallClock(now, KST_TIMEZONE).hour;
 
-    const tasks = await this.taskRepository.find({ where: { isActive: true } });
+    // remindTime이 "지금 이 시각"과 정확히 일치하는 task만 — 다른 task는 이번 체크 대상 아님
+    const tasks = await this.taskRepository.find({ where: { isActive: true, remindTime: currentHourKst } });
     if (tasks.length === 0) return;
 
-    // 유저별 설정(타임존, 디스코드)을 한 번에 미리 불러옴 — task마다 따로 조회 안 하려고
     const userIds = [...new Set(tasks.map((task) => task.userId))];
     const settings = await this.userSettingRepository.find({ where: { userId: In(userIds) } });
     const settingByUserId = new Map(settings.map((setting) => [setting.userId, setting]));
 
-    // 유저별로 미완료 할 일을 묶는다 — 알림 채널(디스코드 웹훅, 기기 목록)이 유저 단위라서
     const dueTasksByUser = new Map<number, Task[]>();
 
     for (const task of tasks) {
-      const timezone = settingByUserId.get(task.userId)?.timezone ?? DEFAULT_TIMEZONE;
+      const { next } = getDeadlineOccurrences(task, now);
+      if (!next) continue; // ONCE 할 일인데 마감이 이미 지남
 
-      if (!isTaskDueToday(task, timezone, now)) continue;
+      // 마감이 24시간 안으로 다가왔을 때만 알림 후보 — 그 외엔 remindTime이
+      // 일치해도(매일 돌아오는 시각이라) 아직 이 주기 차례가 아닌 것
+      const withinLookahead = next.getTime() - now.getTime() < ALARM_LOOKAHEAD_MS;
+      if (!withinLookahead) continue;
 
-      const currentHour = getWallClock(now, timezone).hour;
-      if (currentHour < task.remindTime) continue;
-
-      // [start, end) — end는 다음 주기의 시작이라 포함하면 안 됨
-      const { start, end } = getCurrentPeriodRange(task, timezone, now);
+      // [이전 마감, 다음 마감) 범위 안에 완료기록이 있으면 이미 끝낸 것
+      const { start, end } = getCurrentPeriodRange(task, now);
       const done = await this.completionRepository.findOne({
         where: { task: { id: task.id }, completeTime: And(MoreThanOrEqual(start), LessThan(end)) },
       });
@@ -83,9 +87,9 @@ export class ReminderService {
 
         await Promise.all([
           setting?.discordAlarm
-            ? this.discordService.sendMessage(setting.discordRoom, `⏰ **${summary}**`)
+            ? this.discordService.sendMessage(setting.discordRoom, `**${summary}**`)
             : Promise.resolve(),
-          this.expoPushService.sendToTokens(deviceTokens, '할 일 알림', `⏰ ${summary}`),
+          this.expoPushService.sendToTokens(deviceTokens, '할 일 알림', `${summary}`),
         ]);
       }
     }

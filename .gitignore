@@ -149,3 +149,7 @@ vite.config.ts.timestamp-*
 .idea/
 
 CLAUDE.md
+
+./test
+test
+/test

@@ -33,7 +33,7 @@ export class TasksController {
 
   @Get(':id')
   findOne(@CurrentUser() user: AuthenticatedRequestUser, @Param('id', ParseIntPipe) id: number) {
-    return this.tasksService.findOne(user.userId, id);
+    return this.tasksService.findOneForDisplay(user.userId, id);
   }
 
   @Patch(':id')

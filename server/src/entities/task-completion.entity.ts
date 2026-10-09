@@ -13,7 +13,9 @@ export class TaskCompletion {
   @ManyToOne(() => Task, (task) => task.completions, { onDelete: 'CASCADE' })
   task: Task;
 
-  // 실제로 완료한 순간. 'YYYY-MM-DD HH:mm' (해당 유저 타임존 기준 벽시계 시각)
+  // 실제로 완료한 순간. 'YYYY-MM-DD HH:mm' (항상 한국시간(KST) 기준으로 저장 —
+  // Task.deadLine 등 일정 필드도 전부 KST로 저장되므로, 주기 비교(getCurrentPeriodRange)가
+  // 서로 다른 타임존끼리 비교되는 일이 없게 통일함. 조회 응답에서만 유저 타임존으로 역산해서 보여줌)
   @Column({ length: 20 })
   completeTime: string;
 

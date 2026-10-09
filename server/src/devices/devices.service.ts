@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Device } from '../entities/device.entity';
@@ -28,6 +28,15 @@ export class DevicesService {
 
   remove(userId: number, deviceToken: string) {
     return this.deviceRepository.delete({ deviceToken, userId });
+  }
+
+  /** 알림 켜기/끄기만 변경 — register()와 달리 없으면 새로 만들지 않고 404 */
+  async updateAlarm(userId: number, deviceToken: string, deviceAlarm: boolean) {
+    const device = await this.deviceRepository.findOne({ where: { deviceToken, userId } });
+    if (!device) throw new NotFoundException('디바이스를 찾을 수 없습니다.');
+
+    device.deviceAlarm = deviceAlarm;
+    return this.deviceRepository.save(device);
   }
 
   /** 알림 대상 기기 토큰만 (deviceAlarm이 꺼져있으면 제외) */

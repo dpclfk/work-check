@@ -59,19 +59,24 @@ export class Task {
   @Column({ type: 'enum', enum: TaskCycle, default: TaskCycle.DAILY })
   cycleType: TaskCycle;
 
-  // WEEKLY: 0(일)~6(토), MONTHLY: 1~31, DAILY/ONCE: 사용 안 함
+  // WEEKLY: 0(일)~6(토), MONTHLY: 1~31, DAILY/ONCE: 사용 안 함.
+  // API로 받을 땐 유저 타임존 기준 값이지만, 저장은 항상 한국시간(KST)으로 환산해서
+  // 함(TasksService.create/update, period-key.util.ts의 convertScheduleFields 참고) —
+  // deadLine 기준으로 날짜/요일이 밀리면 이 값도 같이 밀림
   @Column({ type: 'tinyint', unsigned: true, nullable: true })
   cycleValue?: number;
 
-  // ONCE일 때만 씀 — 이 날짜 하루만 해당
+  // ONCE일 때만 씀 — 이 날짜 하루만 해당. cycleValue와 마찬가지로 저장은 KST 기준
   @Column({ type: 'date', nullable: true })
   dueDate?: string;
 
-  // 이 시각(0~23시)까지 완료 기록이 없으면 마감으로 침
+  // 이 시각(0~23시)까지 완료 기록이 없으면 마감으로 침. 항상 한국시간(KST) 기준으로
+  // 저장됨 — 날짜/요일(cycleValue/dueDate)을 미는 기준점도 이 값
   @Column({ type: 'tinyint', unsigned: true })
   deadLine: number;
 
-  // 이 시각(0~23시)부터 알림을 시작함 (deadLine이랑 별개 — 새벽 마감 등 처리는 추후 로직 정리 예정)
+  // 이 시각(0~23시)에 정확히 알림을 보냄 (>= 아니라 ===). 한국시간(KST) 기준으로 저장.
+  // deadLine과 달리 날짜/요일엔 영향 안 줌 — 시각만 독립적으로 환산됨
   @Column({ type: 'tinyint', unsigned: true })
   remindTime: number;
 
