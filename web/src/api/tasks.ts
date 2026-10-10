@@ -5,6 +5,13 @@ export type TaskCycle = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE';
 export interface Task {
   id: number;
   subCategoryId?: number;
+  // GET /tasks에서만 join돼서 옴
+  subCategory?: {
+    id: number;
+    name: string;
+    mainCategoryId?: number | null;
+    mainCategory?: { id: number; name: string };
+  };
   name: string;
   cycleType: TaskCycle;
   cycleValue?: number;

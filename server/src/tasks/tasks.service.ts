@@ -48,7 +48,13 @@ export class TasksService {
 
   async findAll(userId: number) {
     const [tasks, timezone] = await Promise.all([
-      this.taskRepository.find({ where: { userId }, order: { createdAt: 'DESC' } }),
+      // 프론트의 카테고리별 접기 기능을 위해 서브카테고리 + 그 메인카테고리까지 같이 가져옴.
+      // subCategoryId가 없는 task는 subCategory가 그냥 undefined로 옴(nullable 관계라 문제없음)
+      this.taskRepository.find({
+        where: { userId },
+        relations: ['subCategory', 'subCategory.mainCategory'],
+        order: { createdAt: 'DESC' },
+      }),
       this.getUserTimezone(userId),
     ]);
     return tasks.map((task) => this.toDisplay(task, timezone));

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { CreateTaskInput, Task, TaskCycle, tasksApi } from '../api/tasks';
+import { MainCategory, SubCategory, mainCategoriesApi, subCategoriesApi } from '../api/categories';
 import { useAuth } from '../auth/AuthContext';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
@@ -25,14 +26,17 @@ const DEFAULT_FORM: CreateTaskInput = {
 
 interface TaskListPageProps {
   onOpenSettings: () => void;
+  onOpenCategories: () => void;
 }
 
-export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
+export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageProps) {
   const { user, logout } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<CreateTaskInput>(DEFAULT_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -43,9 +47,25 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
     }
   };
 
+  const loadCategories = async () => {
+    const [mains, subs] = await Promise.all([mainCategoriesApi.list(), subCategoriesApi.list()]);
+    setMainCategories(mains);
+    setSubCategories(subs);
+  };
+
   useEffect(() => {
     loadTasks();
+    loadCategories();
   }, []);
+
+  // 메인카테고리 없는 서브카테고리는 "미분류" 그룹으로 묶어서 보여줌
+  const subCategoryGroups = [
+    ...mainCategories.map((main) => ({
+      label: main.name,
+      subs: subCategories.filter((sub) => sub.mainCategoryId === main.id),
+    })),
+    { label: '미분류', subs: subCategories.filter((sub) => sub.mainCategoryId == null) },
+  ].filter((group) => group.subs.length > 0);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -86,6 +106,9 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
         <h1>할 일 체크리스트</h1>
         <div className="user-bar">
           <span className="user-email">{user?.email}</span>
+          <button type="button" className="logout-button" onClick={onOpenCategories}>
+            카테고리
+          </button>
           <button type="button" className="logout-button" onClick={onOpenSettings}>
             설정
           </button>
@@ -101,6 +124,26 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
+        <select
+          value={form.subCategoryId ?? ''}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              subCategoryId: e.target.value === '' ? undefined : Number(e.target.value),
+            })
+          }
+        >
+          <option value="">카테고리 없음</option>
+          {subCategoryGroups.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.subs.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
         <select
           value={form.cycleType}
           onChange={(e) => setForm({ ...form, cycleType: e.target.value as TaskCycle })}
@@ -151,6 +194,12 @@ export function TaskListPage({ onOpenSettings }: TaskListPageProps) {
             <li key={task.id} className={`task-item${task.isActive ? '' : ' task-item-inactive'}`}>
               <div>
                 <strong>{task.name}</strong>
+                {task.subCategory && (
+                  <span className="badge">
+                    {task.subCategory.mainCategory ? `${task.subCategory.mainCategory.name} / ` : ''}
+                    {task.subCategory.name}
+                  </span>
+                )}
                 <span className="badge">{CYCLE_LABEL[task.cycleType]}</span>
                 <span className="time">{task.deadLine}시까지</span>
                 {!task.isActive && <span className="badge badge-off">꺼짐</span>}

@@ -15,9 +15,10 @@ export class SubCategory {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // 메인카테고리 없이 서브카테고리만 쓰는 경우가 있어서 nullable
+  // 메인카테고리 없이 서브카테고리만 쓰는 경우가 있어서 nullable.
+  // 타입에 null도 명시 — PATCH로 명시적 null을 받아 "메인카테고리에서 분리"를 표현하므로
   @Column({ nullable: true })
-  mainCategoryId?: number;
+  mainCategoryId?: number | null;
 
   @ManyToOne(() => MainCategory, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'mainCategoryId' })

@@ -7,6 +7,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { DevicesModule } from './devices/devices.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AuthModule } from './auth/auth.module';
     }),
     AuthModule,
     TasksModule,
+    CategoriesModule,
     NotificationsModule,
     DevicesModule,
     SchedulerModule,
