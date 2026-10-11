@@ -22,9 +22,10 @@ function toIntIfNumericString({ value }: { value: unknown }) {
 }
 
 export class CreateTaskDto {
+  // null을 명시적으로 보내면 "서브카테고리와 분리"라는 의도(TasksService 참고)
   @IsOptional()
   @IsInt()
-  subCategoryId?: number;
+  subCategoryId?: number | null;
 
   // 숫자/불리언으로 보내도 문자열로 바꿔줌 (예: 123 -> "123").
   // 객체/배열/null/undefined는 그대로 둬서 @IsString()이 정상적으로 막게 함

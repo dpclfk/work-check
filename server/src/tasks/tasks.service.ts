@@ -4,6 +4,7 @@ import { And, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Task, TaskCycle } from '../entities/task.entity';
 import { TaskCompletion } from '../entities/task-completion.entity';
 import { UserSetting } from '../entities/user-setting.entity';
+import { SubCategory } from '../entities/sub-category.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import {
@@ -33,9 +34,15 @@ export class TasksService {
     private readonly completionRepository: Repository<TaskCompletion>,
     @InjectRepository(UserSetting)
     private readonly userSettingRepository: Repository<UserSetting>,
+    @InjectRepository(SubCategory)
+    private readonly subCategoryRepository: Repository<SubCategory>,
   ) {}
 
   async create(userId: number, dto: CreateTaskDto) {
+    if (dto.subCategoryId !== undefined && dto.subCategoryId !== null) {
+      await this.assertSubCategoryOwned(userId, dto.subCategoryId);
+    }
+
     const timezone = await this.getUserTimezone(userId);
     // 요청받은 일정 필드(유저 타임존 기준)를 한국시간으로 환산해서 저장
     const kst = convertScheduleFields(this.toScheduleFields(dto), timezone, KST_TIMEZONE);
@@ -75,6 +82,11 @@ export class TasksService {
 
   async update(userId: number, id: number, dto: UpdateTaskDto) {
     const task = await this.findOne(userId, id);
+
+    if (dto.subCategoryId !== undefined && dto.subCategoryId !== null) {
+      await this.assertSubCategoryOwned(userId, dto.subCategoryId);
+    }
+
     const timezone = await this.getUserTimezone(userId);
 
     // 기존(한국시간) 일정을 유저 타임존으로 역산한 뒤, PATCH로 들어온 값(유저 타임존
@@ -169,5 +181,11 @@ export class TasksService {
     if (deadLine === remindTime) {
       throw new BadRequestException('deadLine과 remindTime은 같은 시각일 수 없습니다.');
     }
+  }
+
+  /** subCategoryId가 "존재하고 + 내 소유"인지 — 참조값 자체의 유효성 검증이라 400 */
+  private async assertSubCategoryOwned(userId: number, subCategoryId: number) {
+    const exists = await this.subCategoryRepository.findOne({ where: { id: subCategoryId, userId } });
+    if (!exists) throw new BadRequestException('유효하지 않은 서브 카테고리입니다.');
   }
 }

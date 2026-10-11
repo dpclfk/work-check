@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { CreateTaskInput, Task, TaskCycle, tasksApi } from '../api/tasks';
+import { CreateTaskInput, Task, TaskCycle, UpdateTaskInput, tasksApi } from '../api/tasks';
 import { MainCategory, SubCategory, mainCategoriesApi, subCategoriesApi } from '../api/categories';
 import { useAuth } from '../auth/AuthContext';
 
@@ -37,6 +37,9 @@ export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageP
   const [formError, setFormError] = useState<string | null>(null);
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<UpdateTaskInput>({});
+  const [editError, setEditError] = useState<string | null>(null);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -98,6 +101,42 @@ export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageP
   const handleToggleActive = async (task: Task) => {
     await tasksApi.setActive(task.id, !task.isActive);
     await loadTasks();
+  };
+
+  const startEdit = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditError(null);
+    setEditForm({
+      subCategoryId: task.subCategoryId ?? null,
+      name: task.name,
+      cycleType: task.cycleType,
+      cycleValue: task.cycleValue,
+      dueDate: task.dueDate,
+      deadLine: task.deadLine,
+      remindTime: task.remindTime,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingTaskId(null);
+    setEditError(null);
+  };
+
+  const saveEdit = async (id: number) => {
+    setEditError(null);
+    if (!editForm.name?.trim()) return;
+    if (editForm.cycleType === 'ONCE' && !editForm.dueDate) return;
+    if (editForm.deadLine === editForm.remindTime) {
+      setEditError('알림 시각과 마감 시각은 같을 수 없습니다.');
+      return;
+    }
+    try {
+      await tasksApi.update(id, editForm);
+      setEditingTaskId(null);
+      await loadTasks();
+    } catch (err) {
+      setEditError(extractErrorMessage(err, '수정하지 못했습니다.'));
+    }
   };
 
   return (
@@ -190,29 +229,109 @@ export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageP
         <p>불러오는 중...</p>
       ) : (
         <ul className="task-list">
-          {tasks.map((task) => (
-            <li key={task.id} className={`task-item${task.isActive ? '' : ' task-item-inactive'}`}>
-              <div>
-                <strong>{task.name}</strong>
-                {task.subCategory && (
-                  <span className="badge">
-                    {task.subCategory.mainCategory ? `${task.subCategory.mainCategory.name} / ` : ''}
-                    {task.subCategory.name}
-                  </span>
-                )}
-                <span className="badge">{CYCLE_LABEL[task.cycleType]}</span>
-                <span className="time">{task.deadLine}시까지</span>
-                {!task.isActive && <span className="badge badge-off">꺼짐</span>}
-              </div>
-              <div className="actions">
-                <button onClick={() => handleComplete(task.id)}>완료</button>
-                <button onClick={() => handleToggleActive(task)}>
-                  {task.isActive ? '끄기' : '켜기'}
-                </button>
-                <button onClick={() => handleRemove(task.id)}>삭제</button>
-              </div>
-            </li>
-          ))}
+          {tasks.map((task) =>
+            editingTaskId === task.id ? (
+              <li key={task.id} className="task-item task-item-editing">
+                <div className="task-edit-form">
+                  <input
+                    placeholder="할 일 제목"
+                    value={editForm.name ?? ''}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  />
+                  <select
+                    value={editForm.subCategoryId ?? ''}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        subCategoryId: e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                  >
+                    <option value="">카테고리 없음</option>
+                    {subCategoryGroups.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.subs.map((sub) => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <select
+                    value={editForm.cycleType}
+                    onChange={(e) => setEditForm({ ...editForm, cycleType: e.target.value as TaskCycle })}
+                  >
+                    <option value="DAILY">매일</option>
+                    <option value="WEEKLY">매주</option>
+                    <option value="MONTHLY">매월</option>
+                    <option value="ONCE">한 번만</option>
+                  </select>
+                  {editForm.cycleType === 'ONCE' && (
+                    <input
+                      type="date"
+                      value={editForm.dueDate ?? ''}
+                      onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                    />
+                  )}
+                  <label className="hour-input">
+                    알림
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={editForm.remindTime ?? 0}
+                      onChange={(e) => setEditForm({ ...editForm, remindTime: Number(e.target.value) })}
+                    />
+                    시
+                  </label>
+                  <label className="hour-input">
+                    마감
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={editForm.deadLine ?? 0}
+                      onChange={(e) => setEditForm({ ...editForm, deadLine: Number(e.target.value) })}
+                    />
+                    시
+                  </label>
+                  <div className="actions">
+                    <button type="button" onClick={() => saveEdit(task.id)}>
+                      저장
+                    </button>
+                    <button type="button" onClick={cancelEdit}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+                {editError && <p className="auth-error">{editError}</p>}
+              </li>
+            ) : (
+              <li key={task.id} className={`task-item${task.isActive ? '' : ' task-item-inactive'}`}>
+                <div>
+                  <strong>{task.name}</strong>
+                  {task.subCategory && (
+                    <span className="badge">
+                      {task.subCategory.mainCategory ? `${task.subCategory.mainCategory.name} / ` : ''}
+                      {task.subCategory.name}
+                    </span>
+                  )}
+                  <span className="badge">{CYCLE_LABEL[task.cycleType]}</span>
+                  <span className="time">{task.deadLine}시까지</span>
+                  {!task.isActive && <span className="badge badge-off">꺼짐</span>}
+                </div>
+                <div className="actions">
+                  <button onClick={() => handleComplete(task.id)}>완료</button>
+                  <button onClick={() => startEdit(task)}>수정</button>
+                  <button onClick={() => handleToggleActive(task)}>
+                    {task.isActive ? '끄기' : '켜기'}
+                  </button>
+                  <button onClick={() => handleRemove(task.id)}>삭제</button>
+                </div>
+              </li>
+            ),
+          )}
           {tasks.length === 0 && <p>등록된 할 일이 없습니다.</p>}
         </ul>
       )}

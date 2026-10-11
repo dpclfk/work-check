@@ -214,6 +214,25 @@ body {
   flex: 1;
 }
 
+.task-item-editing {
+  display: block;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.task-edit-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.task-edit-form input:not([type='date']):not([type='number']) {
+  flex: 1;
+}
+
 .task-list {
   list-style: none;
   padding: 0;

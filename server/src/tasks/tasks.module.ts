@@ -3,12 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Task } from '../entities/task.entity';
 import { TaskCompletion } from '../entities/task-completion.entity';
 import { UserSetting } from '../entities/user-setting.entity';
+import { SubCategory } from '../entities/sub-category.entity';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Task, TaskCompletion, UserSetting]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Task, TaskCompletion, UserSetting, SubCategory]), AuthModule],
   controllers: [TasksController],
   providers: [TasksService],
   exports: [TasksService],

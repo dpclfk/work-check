@@ -38,9 +38,10 @@ export class Task {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // 서브카테고리 없이 할 일만 쓰는 경우가 있어서 nullable
+  // 서브카테고리 없이 할 일만 쓰는 경우가 있어서 nullable.
+  // 타입에 null도 명시 — PATCH로 명시적 null을 받아 "서브카테고리에서 분리"를 표현하므로
   @Column({ nullable: true })
-  subCategoryId?: number;
+  subCategoryId?: number | null;
 
   @ManyToOne(() => SubCategory, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'subCategoryId' })
