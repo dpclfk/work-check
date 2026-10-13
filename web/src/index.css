@@ -1,6 +1,10 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Apple SD Gothic Neo",
+    sans-serif;
 }
 
 body {
@@ -9,7 +13,10 @@ body {
 }
 
 .page {
-  max-width: 640px;
+  box-sizing: border-box;
+  width: 70%;
+  min-width: 320px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 32px 16px;
 }
@@ -41,17 +48,60 @@ body {
   font-weight: normal;
 }
 
-.page-header {
+.gnb {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
+  padding: 12px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.gnb-inner {
+  box-sizing: border-box;
+  width: 75%;
+  max-width: calc(1280px * 75 / 70);
+  min-width: calc(320px * 95 / 90);
+  margin: 0 auto;
+  padding: 0 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.page-header h1 {
-  margin: 0;
+@media (max-width: 620px) {
+  .page {
+    width: 90%;
+  }
+
+  .gnb-inner {
+    width: 95%;
+  }
+}
+
+.gnb-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.gnb-link {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gnb-link:hover {
+  background: #f3f4f6;
+}
+
+.gnb-link-active {
+  background: #eef2ff;
+  color: #4338ca;
 }
 
 .user-bar {
@@ -95,7 +145,7 @@ body {
   font-size: 14px;
 }
 
-.auth-form button[type='submit'] {
+.auth-form button[type="submit"] {
   background: #4338ca;
   color: white;
   border: none;
@@ -105,7 +155,7 @@ body {
   cursor: pointer;
 }
 
-.auth-form button[type='submit']:disabled {
+.auth-form button[type="submit"]:disabled {
   opacity: 0.6;
   cursor: default;
 }
@@ -210,10 +260,14 @@ body {
   flex-wrap: wrap;
 }
 
-.task-form input:not([type='time']) {
+.task-form input:not([type="time"]) {
   flex: 1;
 }
 
+/* .task-item과 겹치는 속성(background/padding/radius/shadow)을 여기도 따로
+   갖고 있어서(둘 다 쓸 필요 없음) — JSX에서도 이 클래스 하나만 씀. .task-item을
+   같이 쓰면 그쪽의 display:flex랑 선언 순서/명시도로 충돌해서 레이아웃이
+   깨지는 문제가 있었음(.task-edit-form이 flex item이 돼서 너비를 못 채움) */
 .task-item-editing {
   display: block;
   background: white;
@@ -229,7 +283,7 @@ body {
   align-items: center;
 }
 
-.task-edit-form input:not([type='date']):not([type='number']) {
+.task-edit-form input:not([type="date"]):not([type="number"]) {
   flex: 1;
 }
 

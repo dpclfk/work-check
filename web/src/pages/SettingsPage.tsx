@@ -9,11 +9,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-interface SettingsPageProps {
-  onBack: () => void;
-}
-
-export function SettingsPage({ onBack }: SettingsPageProps) {
+export function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [discordRoom, setDiscordRoom] = useState('');
   const [discordAlarm, setDiscordAlarm] = useState(false);
@@ -83,12 +79,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <h1>설정</h1>
-        <button type="button" className="logout-button" onClick={onBack}>
-          ← 할 일로
-        </button>
-      </div>
+      <h1>설정</h1>
 
       {profile && <p className="settings-email">{profile.email}</p>}
 

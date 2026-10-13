@@ -15,11 +15,7 @@ function confirmDeleteSubItems(target: string): boolean {
   );
 }
 
-interface CategoriesPageProps {
-  onBack: () => void;
-}
-
-export function CategoriesPage({ onBack }: CategoriesPageProps) {
+export function CategoriesPage() {
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,12 +141,7 @@ export function CategoriesPage({ onBack }: CategoriesPageProps) {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <h1>카테고리 관리</h1>
-        <button type="button" className="logout-button" onClick={onBack}>
-          ← 할 일로
-        </button>
-      </div>
+      <h1>카테고리 관리</h1>
 
       {error && <p className="auth-error">{error}</p>}
 

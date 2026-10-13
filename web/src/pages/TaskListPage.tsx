@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { CreateTaskInput, Task, TaskCycle, UpdateTaskInput, tasksApi } from '../api/tasks';
 import { MainCategory, SubCategory, mainCategoriesApi, subCategoriesApi } from '../api/categories';
-import { useAuth } from '../auth/AuthContext';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -24,13 +23,7 @@ const DEFAULT_FORM: CreateTaskInput = {
   remindTime: 21,
 };
 
-interface TaskListPageProps {
-  onOpenSettings: () => void;
-  onOpenCategories: () => void;
-}
-
-export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageProps) {
-  const { user, logout } = useAuth();
+export function TaskListPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<CreateTaskInput>(DEFAULT_FORM);
@@ -141,21 +134,7 @@ export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageP
 
   return (
     <div className="page">
-      <div className="page-header">
-        <h1>할 일 체크리스트</h1>
-        <div className="user-bar">
-          <span className="user-email">{user?.email}</span>
-          <button type="button" className="logout-button" onClick={onOpenCategories}>
-            카테고리
-          </button>
-          <button type="button" className="logout-button" onClick={onOpenSettings}>
-            설정
-          </button>
-          <button type="button" className="logout-button" onClick={logout}>
-            로그아웃
-          </button>
-        </div>
-      </div>
+      <h1>할 일 체크리스트</h1>
 
       <form onSubmit={handleSubmit} className="task-form">
         <input
@@ -177,7 +156,7 @@ export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageP
             <optgroup key={group.label} label={group.label}>
               {group.subs.map((sub) => (
                 <option key={sub.id} value={sub.id}>
-                  {sub.name}
+                  {`${group.label} / ${sub.name}`}
                 </option>
               ))}
             </optgroup>
@@ -231,7 +210,7 @@ export function TaskListPage({ onOpenSettings, onOpenCategories }: TaskListPageP
         <ul className="task-list">
           {tasks.map((task) =>
             editingTaskId === task.id ? (
-              <li key={task.id} className="task-item task-item-editing">
+              <li key={task.id} className="task-item-editing">
                 <div className="task-edit-form">
                   <input
                     placeholder="할 일 제목"
