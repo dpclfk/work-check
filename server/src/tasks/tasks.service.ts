@@ -64,7 +64,14 @@ export class TasksService {
       }),
       this.getUserTimezone(userId),
     ]);
-    return tasks.map((task) => this.toDisplay(task, timezone));
+
+    const now = new Date();
+    return Promise.all(
+      tasks.map(async (task) => {
+        const completion = await this.findCurrentPeriodCompletion(task, now);
+        return { ...this.toDisplay(task, timezone), isCompleted: !!completion };
+      }),
+    );
   }
 
   /** 내부용 — 저장된 그대로(한국시간 기준) 가져옴. update/remove/complete 등 로직에서 씀 */
@@ -138,22 +145,45 @@ export class TasksService {
     return completions.map((c) => ({ ...c, completeTime: formatInTimezone(c.completeTime, timezone) }));
   }
 
-  /** 현재 주기에 대한 완료 처리 (이미 완료했으면 기존 기록 반환) */
+  /**
+   * 현재 주기에 대한 완료 처리 (이미 완료했으면 기존 기록 반환).
+   * "완료 있나 확인 -> 없으면 insert"를 그냥 순서대로 하면, 완료 버튼을
+   * 빠르게 여러 번 누르거나(연타) 여러 기기에서 거의 동시에 눌렀을 때
+   * 두 요청이 동시에 "아직 없음"을 보고 둘 다 insert함.
+   * 그래서 Task row에 쓰기 락(SELECT ... FOR UPDATE)을
+   * 걸어서, 같은 task에 대한 동시 완료 요청이 하나씩 순서대로만 처리되게 함
+   */
   async complete(userId: number, id: number) {
     const task = await this.findOne(userId, id);
     const now = new Date();
 
-    // [start, end) — end는 다음 주기의 시작이라 포함하면 안 됨. Task가 전부
-    // 한국시간으로 저장돼 있어서 유저 타임존을 더 몰라도 됨
+    return this.taskRepository.manager.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder(Task, 'task')
+        .setLock('pessimistic_write')
+        .where('task.id = :id', { id: task.id })
+        .getOne();
+
+      const completionRepository = manager.getRepository(TaskCompletion);
+      const existing = await this.findCurrentPeriodCompletion(task, now, completionRepository);
+      if (existing) return existing;
+
+      const completeTime = formatCompleteTime(now);
+      const completion = completionRepository.create({ task, completeTime });
+      return completionRepository.save(completion);
+    });
+  }
+
+  /** 이 task가 현재 주기에 이미 완료됐는지(있으면 그 완료기록, 없으면 null) */
+  private findCurrentPeriodCompletion(
+    task: Task,
+    now: Date,
+    repository: Repository<TaskCompletion> = this.completionRepository,
+  ) {
     const { start, end } = getCurrentPeriodRange(task, now);
-    const existing = await this.completionRepository.findOne({
+    return repository.findOne({
       where: { task: { id: task.id }, completeTime: And(MoreThanOrEqual(start), LessThan(end)) },
     });
-    if (existing) return existing;
-
-    const completeTime = formatCompleteTime(now);
-    const completion = this.completionRepository.create({ task, completeTime });
-    return this.completionRepository.save(completion);
   }
 
   private toScheduleFields(source: ScheduleFields): ScheduleFields {

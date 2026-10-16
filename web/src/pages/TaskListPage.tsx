@@ -298,6 +298,7 @@ export function TaskListPage() {
                   )}
                   <span className="badge">{CYCLE_LABEL[task.cycleType]}</span>
                   <span className="time">{task.deadLine}시까지</span>
+                  {task.isCompleted && <span className="badge badge-done">완료</span>}
                   {!task.isActive && <span className="badge badge-off">꺼짐</span>}
                 </div>
                 <div className="actions">

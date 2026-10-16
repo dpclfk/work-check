@@ -319,6 +319,11 @@ body {
   color: #6b7280;
 }
 
+.badge-done {
+  background: #d1fae5;
+  color: #059669;
+}
+
 .task-item-inactive {
   opacity: 0.6;
 }

@@ -84,6 +84,11 @@ export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
               <Text style={styles.itemMeta}>
                 {CYCLE_LABEL[item.cycleType]} · {item.deadLine}시까지
               </Text>
+              {item.isCompleted && (
+                <View style={styles.doneBadge}>
+                  <Text style={styles.doneBadgeText}>완료</Text>
+                </View>
+              )}
             </View>
             <View style={styles.itemActions}>
               <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item.id)}>
@@ -169,6 +174,19 @@ const styles = StyleSheet.create({
   },
   itemInactive: {
     opacity: 0.6,
+  },
+  doneBadge: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  doneBadgeText: {
+    color: '#059669',
+    fontSize: 12,
+    fontWeight: '600',
   },
   itemActions: {
     flexDirection: 'row',

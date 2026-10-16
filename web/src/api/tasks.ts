@@ -19,6 +19,9 @@ export interface Task {
   deadLine: number;
   remindTime: number;
   isActive: boolean;
+  // GET /tasks(목록)에서만 내려옴 — 알림 로직(ReminderService)과 동일한 기준으로
+  // "현재 주기를 이미 완료했는지" 계산해서 줌. create/update 응답엔 없음
+  isCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }

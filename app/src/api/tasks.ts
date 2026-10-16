@@ -12,6 +12,8 @@ export interface Task {
   deadLine: number;
   remindTime: number;
   isActive: boolean;
+  // GET /tasks(목록)에서만 내려옴 — "현재 주기를 이미 완료했는지"
+  isCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
