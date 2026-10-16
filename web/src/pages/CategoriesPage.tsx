@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { MainCategory, SubCategory, mainCategoriesApi, subCategoriesApi } from '../api/categories';
+import { PageContainer } from '../components/PageContainer';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -14,6 +15,9 @@ function confirmDeleteSubItems(target: string): boolean {
     `${target}를 삭제합니다.\n\n확인 — 하위 항목까지 함께 삭제\n취소 — 이 카테고리만 삭제하고 하위 항목은 유지(분리)`,
   );
 }
+
+const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
+const buttonClass = 'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
 
 export function CategoriesPage() {
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
@@ -140,51 +144,58 @@ export function CategoriesPage() {
     mainCategories.find((m) => m.id === id)?.name ?? null;
 
   return (
-    <div className="page">
-      <h1>카테고리 관리</h1>
+    <PageContainer>
+      <h1 className="mb-4 text-2xl font-bold">카테고리 관리</h1>
 
-      {error && <p className="auth-error">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading ? (
         <p>불러오는 중...</p>
       ) : (
         <>
-          <section className="category-section">
-            <h2>메인 카테고리</h2>
-            <form onSubmit={handleCreateMain} className="category-form">
+          <section className="mb-8">
+            <h2 className="mb-3 text-base font-semibold">메인 카테고리</h2>
+            <form onSubmit={handleCreateMain} className="mb-3 flex flex-wrap gap-2">
               <input
                 placeholder="메인 카테고리 이름"
                 value={newMainName}
                 onChange={(e) => setNewMainName(e.target.value)}
+                className={`flex-1 ${fieldClass}`}
               />
-              <button type="submit">추가</button>
+              <button type="submit" className={buttonClass}>
+                추가
+              </button>
             </form>
 
-            <ul className="category-list">
+            <ul className="flex list-none flex-col gap-2 p-0">
               {mainCategories.map((category) => (
-                <li key={category.id} className="category-item">
+                <li
+                  key={category.id}
+                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                >
                   {editingMainId === category.id ? (
-                    <div className="category-edit-row">
+                    <div className="flex flex-1 flex-wrap gap-2">
                       <input
                         value={editingMainName}
                         onChange={(e) => setEditingMainName(e.target.value)}
                         autoFocus
+                        className={`flex-1 ${fieldClass}`}
                       />
-                      <button type="button" onClick={() => saveEditMain(category.id)}>
+                      <button type="button" onClick={() => saveEditMain(category.id)} className={buttonClass}>
                         저장
                       </button>
-                      <button type="button" onClick={() => setEditingMainId(null)}>
+                      <button type="button" onClick={() => setEditingMainId(null)} className={buttonClass}>
                         취소
                       </button>
                     </div>
                   ) : (
                     <>
                       <span>{category.name}</span>
-                      <div className="actions">
-                        <button type="button" onClick={() => startEditMain(category)}>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => startEditMain(category)} className={buttonClass}>
                           수정
                         </button>
-                        <button type="button" onClick={() => handleRemoveMain(category)}>
+                        <button type="button" onClick={() => handleRemoveMain(category)} className={buttonClass}>
                           삭제
                         </button>
                       </div>
@@ -196,15 +207,14 @@ export function CategoriesPage() {
             </ul>
           </section>
 
-          <section className="category-section">
-            <h2>서브 카테고리</h2>
-            <form onSubmit={handleCreateSub} className="category-form">
-              <input
-                placeholder="서브 카테고리 이름"
-                value={newSubName}
-                onChange={(e) => setNewSubName(e.target.value)}
-              />
-              <select value={newSubMainId} onChange={(e) => setNewSubMainId(e.target.value)}>
+          <section className="mb-8">
+            <h2 className="mb-3 text-base font-semibold">서브 카테고리</h2>
+            <form onSubmit={handleCreateSub} className="mb-3 flex flex-wrap gap-2">
+              <select
+                value={newSubMainId}
+                onChange={(e) => setNewSubMainId(e.target.value)}
+                className={fieldClass}
+              >
                 <option value="">메인 카테고리 없음</option>
                 {mainCategories.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -212,22 +222,29 @@ export function CategoriesPage() {
                   </option>
                 ))}
               </select>
-              <button type="submit">추가</button>
+              <input
+                placeholder="서브 카테고리 이름"
+                value={newSubName}
+                onChange={(e) => setNewSubName(e.target.value)}
+                className={`flex-1 ${fieldClass}`}
+              />
+              <button type="submit" className={buttonClass}>
+                추가
+              </button>
             </form>
 
-            <ul className="category-list">
+            <ul className="flex list-none flex-col gap-2 p-0">
               {subCategories.map((category) => (
-                <li key={category.id} className="category-item">
+                <li
+                  key={category.id}
+                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                >
                   {editingSubId === category.id ? (
-                    <div className="category-edit-row">
-                      <input
-                        value={editingSubName}
-                        onChange={(e) => setEditingSubName(e.target.value)}
-                        autoFocus
-                      />
+                    <div className="flex flex-1 flex-wrap gap-2">
                       <select
                         value={editingSubMainId}
                         onChange={(e) => setEditingSubMainId(e.target.value)}
+                        className={fieldClass}
                       >
                         <option value="">메인 카테고리 없음</option>
                         {mainCategories.map((m) => (
@@ -236,10 +253,16 @@ export function CategoriesPage() {
                           </option>
                         ))}
                       </select>
-                      <button type="button" onClick={() => saveEditSub(category.id)}>
+                      <input
+                        value={editingSubName}
+                        onChange={(e) => setEditingSubName(e.target.value)}
+                        autoFocus
+                        className={`flex-1 ${fieldClass}`}
+                      />
+                      <button type="button" onClick={() => saveEditSub(category.id)} className={buttonClass}>
                         저장
                       </button>
-                      <button type="button" onClick={() => setEditingSubId(null)}>
+                      <button type="button" onClick={() => setEditingSubId(null)} className={buttonClass}>
                         취소
                       </button>
                     </div>
@@ -248,14 +271,16 @@ export function CategoriesPage() {
                       <span>
                         {category.name}
                         {mainCategoryName(category.mainCategoryId) && (
-                          <span className="badge">{mainCategoryName(category.mainCategoryId)}</span>
+                          <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
+                            {mainCategoryName(category.mainCategoryId)}
+                          </span>
                         )}
                       </span>
-                      <div className="actions">
-                        <button type="button" onClick={() => startEditSub(category)}>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => startEditSub(category)} className={buttonClass}>
                           수정
                         </button>
-                        <button type="button" onClick={() => handleRemoveSub(category)}>
+                        <button type="button" onClick={() => handleRemoveSub(category)} className={buttonClass}>
                           삭제
                         </button>
                       </div>
@@ -268,6 +293,6 @@ export function CategoriesPage() {
           </section>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

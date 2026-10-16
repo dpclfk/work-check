@@ -36,9 +36,9 @@ export function LoginPage() {
   };
 
   return (
-    <div className="auth-page">
-      <h1>Work Check</h1>
-      <form onSubmit={handleSubmit} className="auth-form">
+    <div className="mx-auto max-w-[360px] px-4 py-20 text-center">
+      <h1 className="mb-6 text-2xl font-bold">Work Check</h1>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         <input
           type="email"
           placeholder="이메일"
@@ -46,6 +46,7 @@ export function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           maxLength={254}
           required
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
         />
         <input
           type="password"
@@ -54,18 +55,25 @@ export function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           minLength={8}
           required
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
         />
         {mode === 'register' && (
-          <p className="auth-hint">비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.</p>
+          <p className="-mt-1 text-left text-xs text-gray-400">
+            비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.
+          </p>
         )}
-        {error && <p className="auth-error">{error}</p>}
-        <button type="submit" disabled={loading}>
+        {error && <p className="m-0 text-sm text-red-600">{error}</p>}
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-lg bg-indigo-700 py-2.5 font-semibold text-white disabled:cursor-default disabled:opacity-60"
+        >
           {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
         </button>
       </form>
       <button
         type="button"
-        className="auth-toggle"
+        className="mt-4 bg-transparent text-sm text-indigo-700"
         onClick={() => {
           setError(null);
           setMode(mode === 'login' ? 'register' : 'login');
