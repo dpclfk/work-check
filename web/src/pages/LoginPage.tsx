@@ -9,30 +9,22 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function LoginPage() {
-  const { login, register } = useAuth();
+  const { loginMutation, registerMutation } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const activeMutation = mode === 'login' ? loginMutation : registerMutation;
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      if (mode === 'login') {
-        await login(email, password);
-      } else {
-        await register(email, password);
-      }
-    } catch (err) {
-      setError(
-        extractErrorMessage(err, mode === 'login' ? '로그인에 실패했습니다.' : '회원가입에 실패했습니다.'),
-      );
-    } finally {
-      setLoading(false);
-    }
+    activeMutation.mutate({ email, password });
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'register' : 'login');
+    loginMutation.reset();
+    registerMutation.reset();
   };
 
   return (
@@ -62,23 +54,23 @@ export function LoginPage() {
             비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.
           </p>
         )}
-        {error && <p className="m-0 text-sm text-red-600">{error}</p>}
+        {activeMutation.isError && (
+          <p className="m-0 text-sm text-red-600">
+            {extractErrorMessage(
+              activeMutation.error,
+              mode === 'login' ? '로그인에 실패했습니다.' : '회원가입에 실패했습니다.',
+            )}
+          </p>
+        )}
         <button
           type="submit"
-          disabled={loading}
+          disabled={activeMutation.isPending}
           className="rounded-lg bg-indigo-700 py-2.5 font-semibold text-white disabled:cursor-default disabled:opacity-60"
         >
-          {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+          {activeMutation.isPending ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
         </button>
       </form>
-      <button
-        type="button"
-        className="mt-4 bg-transparent text-sm text-indigo-700"
-        onClick={() => {
-          setError(null);
-          setMode(mode === 'login' ? 'register' : 'login');
-        }}
-      >
+      <button type="button" className="mt-4 bg-transparent text-sm text-indigo-700" onClick={toggleMode}>
         {mode === 'login' ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
       </button>
     </div>

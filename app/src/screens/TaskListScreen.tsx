@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -8,8 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Task, TaskCycle, tasksApi } from '../api/tasks';
+import { Task, TaskCycle } from '../api/tasks';
 import { useAuth } from '../auth/AuthContext';
+import { useCompleteTaskMutation, useSetTaskActiveMutation, useTasksQuery } from '../queries/tasks';
 
 const CYCLE_LABEL: Record<TaskCycle, string> = {
   DAILY: '매일',
@@ -23,34 +23,10 @@ interface TaskListScreenProps {
 }
 
 export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
-  const { user, logout } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadTasks = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      setTasks(await tasksApi.list());
-    } catch (error) {
-      console.error('할 일 목록을 불러오지 못했습니다', error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
-  const handleComplete = async (id: number) => {
-    await tasksApi.complete(id);
-    await loadTasks();
-  };
-
-  const handleToggleActive = async (task: Task) => {
-    await tasksApi.setActive(task.id, !task.isActive);
-    await loadTasks();
-  };
+  const { user, logoutMutation } = useAuth();
+  const { data: tasks = [], isRefetching, refetch } = useTasksQuery();
+  const completeMutation = useCompleteTaskMutation();
+  const toggleActiveMutation = useSetTaskActiveMutation();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -63,15 +39,17 @@ export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
           <TouchableOpacity onPress={onOpenSettings}>
             <Text style={styles.logoutText}>설정</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={logout}>
-            <Text style={styles.logoutText}>로그아웃</Text>
+          <TouchableOpacity onPress={() => logoutMutation.mutate()} disabled={logoutMutation.isPending}>
+            <Text style={styles.logoutText}>
+              {logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
       <FlatList
         data={tasks}
         keyExtractor={(task) => String(task.id)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadTasks} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={<Text style={styles.empty}>등록된 할 일이 없습니다.</Text>}
         renderItem={({ item }) => (
@@ -91,10 +69,18 @@ export function TaskListScreen({ onOpenSettings }: TaskListScreenProps) {
               )}
             </View>
             <View style={styles.itemActions}>
-              <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item.id)}>
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={() => completeMutation.mutate(item.id)}
+              >
                 <Text style={styles.completeButtonText}>완료</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.toggleButton} onPress={() => handleToggleActive(item)}>
+              <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={() =>
+                  toggleActiveMutation.mutate({ id: item.id, isActive: !item.isActive })
+                }
+              >
                 <Text style={styles.toggleButtonText}>{item.isActive ? '끄기' : '켜기'}</Text>
               </TouchableOpacity>
             </View>

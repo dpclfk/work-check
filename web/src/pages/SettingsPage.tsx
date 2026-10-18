@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { authApi, UserProfile } from '../api/auth';
 import { buildTimezoneOptions, detectLocalTimezone } from '../utils/timezones';
 import { PageContainer } from '../components/PageContainer';
+import { useProfileQuery, useUpdateProfileMutation } from '../queries/profile';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -11,63 +11,47 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function SettingsPage() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { data: profile, isLoading: loading } = useProfileQuery();
+  const updateMutation = useUpdateProfileMutation();
+
   const [discordRoom, setDiscordRoom] = useState('');
   const [discordAlarm, setDiscordAlarm] = useState(false);
   const [timezone, setTimezone] = useState('Asia/Seoul');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
+  // 서버에서 프로필을 처음 받아온 시점(혹은 갱신된 시점)에 폼의 로컬 편집 state로 복사
   useEffect(() => {
-    authApi
-      .getMe()
-      .then((data) => {
-        setProfile(data);
-        setDiscordRoom(data.discordRoom ?? '');
-        setDiscordAlarm(data.discordAlarm);
-        setTimezone(data.timezone);
-      })
-      .catch((err) => setError(extractErrorMessage(err, '설정을 불러오지 못했습니다.')))
-      .finally(() => setLoading(false));
-  }, []);
+    if (!profile) return;
+    setDiscordRoom(profile.discordRoom ?? '');
+    setDiscordAlarm(profile.discordAlarm);
+    setTimezone(profile.timezone);
+  }, [profile]);
 
-  const handleSave = async (e: FormEvent) => {
+  const handleSave = (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     setSavedMessage(null);
-    setSaving(true);
-    try {
-      const updated = await authApi.updateMe({
+    updateMutation.mutate(
+      {
         discordRoom: discordRoom.trim() === '' ? null : discordRoom.trim(),
         discordAlarm,
         timezone,
-      });
-      setProfile(updated);
-      setSavedMessage('저장했습니다.');
-    } catch (err) {
-      setError(extractErrorMessage(err, '저장에 실패했습니다.'));
-    } finally {
-      setSaving(false);
-    }
+      },
+      { onSuccess: () => setSavedMessage('저장했습니다.') },
+    );
   };
 
-  const handleRemoveWebhook = async () => {
-    setError(null);
+  const handleRemoveWebhook = () => {
     setSavedMessage(null);
-    setSaving(true);
-    try {
-      const updated = await authApi.updateMe({ discordRoom: null, discordAlarm: false });
-      setProfile(updated);
-      setDiscordRoom('');
-      setDiscordAlarm(false);
-      setSavedMessage('웹훅을 제거했습니다.');
-    } catch (err) {
-      setError(extractErrorMessage(err, '제거에 실패했습니다.'));
-    } finally {
-      setSaving(false);
-    }
+    updateMutation.mutate(
+      { discordRoom: null, discordAlarm: false },
+      {
+        onSuccess: () => {
+          setDiscordRoom('');
+          setDiscordAlarm(false);
+          setSavedMessage('웹훅을 제거했습니다.');
+        },
+      },
+    );
   };
 
   if (loading) {
@@ -80,6 +64,7 @@ export function SettingsPage() {
 
   const inputClass = 'flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-normal';
   const hintClass = 'text-xs font-normal text-gray-400';
+  const saving = updateMutation.isPending;
 
   return (
     <PageContainer>
@@ -147,7 +132,11 @@ export function SettingsPage() {
           <span className={hintClass}>할 일 마감/알림 시각을 이 타임존 기준으로 계산합니다.</span>
         </label>
 
-        {error && <p className="m-0 text-sm text-red-600">{error}</p>}
+        {updateMutation.isError && (
+          <p className="m-0 text-sm text-red-600">
+            {extractErrorMessage(updateMutation.error, '저장에 실패했습니다.')}
+          </p>
+        )}
         {savedMessage && <p className="m-0 text-xs text-emerald-600">{savedMessage}</p>}
 
         <button

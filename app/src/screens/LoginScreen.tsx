@@ -18,29 +18,21 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function LoginScreen() {
-  const { login, register } = useAuth();
+  const { loginMutation, registerMutation } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      if (mode === 'login') {
-        await login(email, password);
-      } else {
-        await register(email, password);
-      }
-    } catch (err) {
-      setError(
-        extractErrorMessage(err, mode === 'login' ? '로그인에 실패했습니다.' : '회원가입에 실패했습니다.'),
-      );
-    } finally {
-      setLoading(false);
-    }
+  const activeMutation = mode === 'login' ? loginMutation : registerMutation;
+
+  const handleSubmit = () => {
+    activeMutation.mutate({ email, password });
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'register' : 'login');
+    loginMutation.reset();
+    registerMutation.reset();
   };
 
   return (
@@ -72,20 +64,26 @@ export function LoginScreen() {
           <Text style={styles.hint}>비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.</Text>
         )}
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {activeMutation.isError && (
+          <Text style={styles.error}>
+            {extractErrorMessage(
+              activeMutation.error,
+              mode === 'login' ? '로그인에 실패했습니다.' : '회원가입에 실패했습니다.',
+            )}
+          </Text>
+        )}
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSubmit}
+          disabled={activeMutation.isPending}
+        >
           <Text style={styles.submitButtonText}>
-            {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+            {activeMutation.isPending ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            setError(null);
-            setMode(mode === 'login' ? 'register' : 'login');
-          }}
-        >
+        <TouchableOpacity onPress={toggleMode}>
           <Text style={styles.toggleText}>
             {mode === 'login' ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
           </Text>

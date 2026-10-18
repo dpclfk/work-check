@@ -1,6 +1,16 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { MainCategory, SubCategory, mainCategoriesApi, subCategoriesApi } from '../api/categories';
+import { FormEvent, useState } from 'react';
+import { MainCategory, SubCategory } from '../api/categories';
 import { PageContainer } from '../components/PageContainer';
+import {
+  useCreateMainCategoryMutation,
+  useCreateSubCategoryMutation,
+  useMainCategoriesQuery,
+  useRemoveMainCategoryMutation,
+  useRemoveSubCategoryMutation,
+  useRenameMainCategoryMutation,
+  useSubCategoriesQuery,
+  useUpdateSubCategoryMutation,
+} from '../queries/categories';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -17,13 +27,20 @@ function confirmDeleteSubItems(target: string): boolean {
 }
 
 const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
-const buttonClass = 'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
+const buttonClass =
+  'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
 
 export function CategoriesPage() {
-  const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: mainCategories = [], isLoading: mainsLoading } = useMainCategoriesQuery();
+  const { data: subCategories = [], isLoading: subsLoading } = useSubCategoriesQuery();
+  const loading = mainsLoading || subsLoading;
+
+  const createMainMutation = useCreateMainCategoryMutation();
+  const renameMainMutation = useRenameMainCategoryMutation();
+  const removeMainMutation = useRemoveMainCategoryMutation();
+  const createSubMutation = useCreateSubCategoryMutation();
+  const updateSubMutation = useUpdateSubCategoryMutation();
+  const removeSubMutation = useRemoveSubCategoryMutation();
 
   const [newMainName, setNewMainName] = useState('');
   const [newSubName, setNewSubName] = useState('');
@@ -35,49 +52,34 @@ export function CategoriesPage() {
   const [editingSubName, setEditingSubName] = useState('');
   const [editingSubMainId, setEditingSubMainId] = useState<string>('');
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [mains, subs] = await Promise.all([mainCategoriesApi.list(), subCategoriesApi.list()]);
-      setMainCategories(mains);
-      setSubCategories(subs);
-    } catch (err) {
-      setError(extractErrorMessage(err, '카테고리를 불러오지 못했습니다.'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 지금 활성화된 mutation 중 가장 최근 에러 하나만 보여줌(지금까지의 단일 에러 메시지 UX 유지)
+  const error = [
+    createMainMutation,
+    renameMainMutation,
+    removeMainMutation,
+    createSubMutation,
+    updateSubMutation,
+    removeSubMutation,
+  ].find((m) => m.isError)?.error;
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const handleCreateMain = async (e: FormEvent) => {
+  const handleCreateMain = (e: FormEvent) => {
     e.preventDefault();
     if (!newMainName.trim()) return;
-    setError(null);
-    try {
-      await mainCategoriesApi.create(newMainName.trim());
-      setNewMainName('');
-      await load();
-    } catch (err) {
-      setError(extractErrorMessage(err, '메인 카테고리를 추가하지 못했습니다.'));
-    }
+    createMainMutation.mutate(newMainName.trim(), { onSuccess: () => setNewMainName('') });
   };
 
-  const handleCreateSub = async (e: FormEvent) => {
+  const handleCreateSub = (e: FormEvent) => {
     e.preventDefault();
     if (!newSubName.trim()) return;
-    setError(null);
-    try {
-      await subCategoriesApi.create(newSubName.trim(), newSubMainId === '' ? null : Number(newSubMainId));
-      setNewSubName('');
-      setNewSubMainId('');
-      await load();
-    } catch (err) {
-      setError(extractErrorMessage(err, '서브 카테고리를 추가하지 못했습니다.'));
-    }
+    createSubMutation.mutate(
+      { name: newSubName.trim(), mainCategoryId: newSubMainId === '' ? null : Number(newSubMainId) },
+      {
+        onSuccess: () => {
+          setNewSubName('');
+          setNewSubMainId('');
+        },
+      },
+    );
   };
 
   const startEditMain = (category: MainCategory) => {
@@ -85,27 +87,17 @@ export function CategoriesPage() {
     setEditingMainName(category.name);
   };
 
-  const saveEditMain = async (id: number) => {
+  const saveEditMain = (id: number) => {
     if (!editingMainName.trim()) return;
-    setError(null);
-    try {
-      await mainCategoriesApi.rename(id, editingMainName.trim());
-      setEditingMainId(null);
-      await load();
-    } catch (err) {
-      setError(extractErrorMessage(err, '수정하지 못했습니다.'));
-    }
+    renameMainMutation.mutate(
+      { id, name: editingMainName.trim() },
+      { onSuccess: () => setEditingMainId(null) },
+    );
   };
 
-  const handleRemoveMain = async (category: MainCategory) => {
+  const handleRemoveMain = (category: MainCategory) => {
     const deleteSubItems = confirmDeleteSubItems(`메인 카테고리 "${category.name}"`);
-    setError(null);
-    try {
-      await mainCategoriesApi.remove(category.id, deleteSubItems);
-      await load();
-    } catch (err) {
-      setError(extractErrorMessage(err, '삭제하지 못했습니다.'));
-    }
+    removeMainMutation.mutate({ id: category.id, deleteSubItems });
   };
 
   const startEditSub = (category: SubCategory) => {
@@ -114,30 +106,23 @@ export function CategoriesPage() {
     setEditingSubMainId(category.mainCategoryId != null ? String(category.mainCategoryId) : '');
   };
 
-  const saveEditSub = async (id: number) => {
+  const saveEditSub = (id: number) => {
     if (!editingSubName.trim()) return;
-    setError(null);
-    try {
-      await subCategoriesApi.update(id, {
-        name: editingSubName.trim(),
-        mainCategoryId: editingSubMainId === '' ? null : Number(editingSubMainId),
-      });
-      setEditingSubId(null);
-      await load();
-    } catch (err) {
-      setError(extractErrorMessage(err, '수정하지 못했습니다.'));
-    }
+    updateSubMutation.mutate(
+      {
+        id,
+        input: {
+          name: editingSubName.trim(),
+          mainCategoryId: editingSubMainId === '' ? null : Number(editingSubMainId),
+        },
+      },
+      { onSuccess: () => setEditingSubId(null) },
+    );
   };
 
-  const handleRemoveSub = async (category: SubCategory) => {
+  const handleRemoveSub = (category: SubCategory) => {
     const deleteSubItems = confirmDeleteSubItems(`서브 카테고리 "${category.name}"`);
-    setError(null);
-    try {
-      await subCategoriesApi.remove(category.id, deleteSubItems);
-      await load();
-    } catch (err) {
-      setError(extractErrorMessage(err, '삭제하지 못했습니다.'));
-    }
+    removeSubMutation.mutate({ id: category.id, deleteSubItems });
   };
 
   const mainCategoryName = (id?: number | null) =>
@@ -147,7 +132,7 @@ export function CategoriesPage() {
     <PageContainer>
       <h1 className="mb-4 text-2xl font-bold">카테고리 관리</h1>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600">{extractErrorMessage(error, '요청을 처리하지 못했습니다.')}</p>}
 
       {loading ? (
         <p>불러오는 중...</p>
@@ -162,7 +147,7 @@ export function CategoriesPage() {
                 onChange={(e) => setNewMainName(e.target.value)}
                 className={`flex-1 ${fieldClass}`}
               />
-              <button type="submit" className={buttonClass}>
+              <button type="submit" disabled={createMainMutation.isPending} className={buttonClass}>
                 추가
               </button>
             </form>
@@ -228,7 +213,7 @@ export function CategoriesPage() {
                 onChange={(e) => setNewSubName(e.target.value)}
                 className={`flex-1 ${fieldClass}`}
               />
-              <button type="submit" className={buttonClass}>
+              <button type="submit" disabled={createSubMutation.isPending} className={buttonClass}>
                 추가
               </button>
             </form>

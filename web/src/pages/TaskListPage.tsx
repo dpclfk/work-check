@@ -1,7 +1,15 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { CreateTaskInput, Task, TaskCycle, UpdateTaskInput, tasksApi } from '../api/tasks';
-import { MainCategory, SubCategory, mainCategoriesApi, subCategoriesApi } from '../api/categories';
+import { FormEvent, useState } from 'react';
+import { CreateTaskInput, Task, TaskCycle, UpdateTaskInput } from '../api/tasks';
 import { PageContainer } from '../components/PageContainer';
+import { useMainCategoriesQuery, useSubCategoriesQuery } from '../queries/categories';
+import {
+  useCompleteTaskMutation,
+  useCreateTaskMutation,
+  useRemoveTaskMutation,
+  useSetTaskActiveMutation,
+  useTasksQuery,
+  useUpdateTaskMutation,
+} from '../queries/tasks';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -25,7 +33,8 @@ const DEFAULT_FORM: CreateTaskInput = {
 };
 
 const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
-const buttonClass = 'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
+const buttonClass =
+  'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
 // 카테고리:제목 = 3:7 비율. min-w-0 없으면 flex item의 암묵적 min-width:auto 때문에
 // 긴 텍스트가 선택됐을 때 비율이 깨짐(실제로 겪었던 버그)
 const categorySelectClass = `flex-[3] min-w-0 ${fieldClass}`;
@@ -36,35 +45,21 @@ const hourInputClass = 'flex items-center gap-1 text-xs text-gray-500';
 const hourNumberClass = `w-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${fieldClass}`;
 
 export function TaskListPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { data: tasks = [], isLoading: loading } = useTasksQuery();
+  const { data: mainCategories = [] } = useMainCategoriesQuery();
+  const { data: subCategories = [] } = useSubCategoriesQuery();
+
+  const createMutation = useCreateTaskMutation();
+  const updateMutation = useUpdateTaskMutation();
+  const completeMutation = useCompleteTaskMutation();
+  const removeMutation = useRemoveTaskMutation();
+  const setActiveMutation = useSetTaskActiveMutation();
+
   const [form, setForm] = useState<CreateTaskInput>(DEFAULT_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [formValidationError, setFormValidationError] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<UpdateTaskInput>({});
-  const [editError, setEditError] = useState<string | null>(null);
-
-  const loadTasks = async () => {
-    setLoading(true);
-    try {
-      setTasks(await tasksApi.list());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCategories = async () => {
-    const [mains, subs] = await Promise.all([mainCategoriesApi.list(), subCategoriesApi.list()]);
-    setMainCategories(mains);
-    setSubCategories(subs);
-  };
-
-  useEffect(() => {
-    loadTasks();
-    loadCategories();
-  }, []);
+  const [editValidationError, setEditValidationError] = useState<string | null>(null);
 
   // 메인카테고리 없는 서브카테고리는 "미분류" 그룹으로 묶어서 보여줌
   const subCategoryGroups = [
@@ -75,42 +70,21 @@ export function TaskListPage() {
     { label: '미분류', subs: subCategories.filter((sub) => sub.mainCategoryId == null) },
   ].filter((group) => group.subs.length > 0);
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    setFormError(null);
+    setFormValidationError(null);
     if (!form.name.trim()) return;
     if (form.cycleType === 'ONCE' && !form.dueDate) return;
     if (form.deadLine === form.remindTime) {
-      setFormError('알림 시각과 마감 시각은 같을 수 없습니다.');
+      setFormValidationError('알림 시각과 마감 시각은 같을 수 없습니다.');
       return;
     }
-    try {
-      await tasksApi.create(form);
-      setForm(DEFAULT_FORM);
-      await loadTasks();
-    } catch (err) {
-      setFormError(extractErrorMessage(err, '할 일을 추가하지 못했습니다.'));
-    }
-  };
-
-  const handleComplete = async (id: number) => {
-    await tasksApi.complete(id);
-    await loadTasks();
-  };
-
-  const handleRemove = async (id: number) => {
-    await tasksApi.remove(id);
-    await loadTasks();
-  };
-
-  const handleToggleActive = async (task: Task) => {
-    await tasksApi.setActive(task.id, !task.isActive);
-    await loadTasks();
+    createMutation.mutate(form, { onSuccess: () => setForm(DEFAULT_FORM) });
   };
 
   const startEdit = (task: Task) => {
     setEditingTaskId(task.id);
-    setEditError(null);
+    setEditValidationError(null);
     setEditForm({
       subCategoryId: task.subCategoryId ?? null,
       name: task.name,
@@ -124,25 +98,29 @@ export function TaskListPage() {
 
   const cancelEdit = () => {
     setEditingTaskId(null);
-    setEditError(null);
+    setEditValidationError(null);
   };
 
-  const saveEdit = async (id: number) => {
-    setEditError(null);
+  const saveEdit = (id: number) => {
+    setEditValidationError(null);
     if (!editForm.name?.trim()) return;
     if (editForm.cycleType === 'ONCE' && !editForm.dueDate) return;
     if (editForm.deadLine === editForm.remindTime) {
-      setEditError('알림 시각과 마감 시각은 같을 수 없습니다.');
+      setEditValidationError('알림 시각과 마감 시각은 같을 수 없습니다.');
       return;
     }
-    try {
-      await tasksApi.update(id, editForm);
-      setEditingTaskId(null);
-      await loadTasks();
-    } catch (err) {
-      setEditError(extractErrorMessage(err, '수정하지 못했습니다.'));
-    }
+    updateMutation.mutate(
+      { id, input: editForm },
+      { onSuccess: () => setEditingTaskId(null) },
+    );
   };
+
+  const formError =
+    formValidationError ??
+    (createMutation.isError ? extractErrorMessage(createMutation.error, '할 일을 추가하지 못했습니다.') : null);
+  const editError =
+    editValidationError ??
+    (updateMutation.isError ? extractErrorMessage(updateMutation.error, '수정하지 못했습니다.') : null);
 
   return (
     <PageContainer>
@@ -222,8 +200,8 @@ export function TaskListPage() {
             />
             시
           </label>
-          <button type="submit" className={buttonClass}>
-            추가
+          <button type="submit" disabled={createMutation.isPending} className={buttonClass}>
+            {createMutation.isPending ? '추가 중...' : '추가'}
           </button>
         </div>
       </form>
@@ -314,8 +292,13 @@ export function TaskListPage() {
                       시
                     </label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => saveEdit(task.id)} className={buttonClass}>
-                        저장
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(task.id)}
+                        disabled={updateMutation.isPending}
+                        className={buttonClass}
+                      >
+                        {updateMutation.isPending ? '저장 중...' : '저장'}
                       </button>
                       <button type="button" onClick={cancelEdit} className={buttonClass}>
                         취소
@@ -356,16 +339,19 @@ export function TaskListPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleComplete(task.id)} className={buttonClass}>
+                  <button onClick={() => completeMutation.mutate(task.id)} className={buttonClass}>
                     완료
                   </button>
                   <button onClick={() => startEdit(task)} className={buttonClass}>
                     수정
                   </button>
-                  <button onClick={() => handleToggleActive(task)} className={buttonClass}>
+                  <button
+                    onClick={() => setActiveMutation.mutate({ id: task.id, isActive: !task.isActive })}
+                    className={buttonClass}
+                  >
                     {task.isActive ? '끄기' : '켜기'}
                   </button>
-                  <button onClick={() => handleRemove(task.id)} className={buttonClass}>
+                  <button onClick={() => removeMutation.mutate(task.id)} className={buttonClass}>
                     삭제
                   </button>
                 </div>

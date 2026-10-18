@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { TaskListScreen } from './src/screens/TaskListScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { registerForPushNotificationsAsync } from './src/notifications/registerForPushNotifications';
+
+const queryClient = new QueryClient();
 
 function AppContent() {
   const { isAuthenticated, isReady } = useAuth();
@@ -29,9 +32,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-      <StatusBar style="auto" />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppContent />
+        <StatusBar style="auto" />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

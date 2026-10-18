@@ -9,7 +9,7 @@ const NAV_ITEMS = [
 
 /** 로그인 후 모든 화면 상단에 고정으로 떠있는 전역 네비게이션 바 */
 export function Gnb() {
-  const { user, logout } = useAuth();
+  const { user, logoutMutation } = useAuth();
 
   return (
     <header className="sticky top-0 z-10 bg-white py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -36,10 +36,11 @@ export function Gnb() {
           <span className="text-xs text-gray-500">{user?.email}</span>
           <button
             type="button"
-            className="border border-gray-300 bg-transparent px-2 py-1 text-sm"
-            onClick={logout}
+            disabled={logoutMutation.isPending}
+            className="border border-gray-300 bg-transparent px-2 py-1 text-sm disabled:opacity-60"
+            onClick={() => logoutMutation.mutate()}
           >
-            로그아웃
+            {logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
           </button>
         </div>
       </div>

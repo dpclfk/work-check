@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.4",
     "axios": "^1.20.0",
     "expo": "~57.0.20",
     "expo-constants": "~57.0.17",

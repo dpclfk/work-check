@@ -1,14 +1,20 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { UseMutationResult } from '@tanstack/react-query';
 import { tokenStore, AuthUser } from './tokenStore';
-import { authApi } from '../api/auth';
+import { useLoginMutation, useLogoutMutation, useRegisterMutation } from '../queries/auth';
+
+interface Credentials {
+  email: string;
+  password: string;
+}
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isReady: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  loginMutation: UseMutationResult<AuthUser, Error, Credentials>;
+  registerMutation: UseMutationResult<AuthUser, Error, Credentials>;
+  logoutMutation: UseMutationResult<void, Error, void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,22 +31,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return tokenStore.subscribe((state) => setUser(state.user));
   }, []);
 
-  const login = async (email: string, password: string) => {
-    await authApi.login(email, password);
-  };
-
-  const register = async (email: string, password: string) => {
-    await authApi.register(email, password);
-    await authApi.login(email, password); // 가입 후 바로 로그인
-  };
-
-  const logout = async () => {
-    await authApi.logout();
-  };
+  const loginMutation = useLoginMutation();
+  const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isReady, login, register, logout }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isReady,
+        loginMutation,
+        registerMutation,
+        logoutMutation,
+      }}
     >
       {children}
     </AuthContext.Provider>

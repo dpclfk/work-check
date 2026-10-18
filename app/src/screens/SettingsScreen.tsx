@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { authApi, UserProfile } from '../api/auth';
 import { buildTimezoneOptions, detectLocalTimezone } from '../utils/timezones';
+import { useProfileQuery, useUpdateProfileMutation } from '../queries/profile';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -23,63 +23,47 @@ interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ onBack }: SettingsScreenProps) {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { data: profile, isLoading: loading } = useProfileQuery();
+  const updateMutation = useUpdateProfileMutation();
+
   const [webhookUrl, setWebhookUrl] = useState('');
   const [discordAlarm, setDiscordAlarm] = useState(false);
   const [timezone, setTimezone] = useState('Asia/Seoul');
   const [showTimezoneList, setShowTimezoneList] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
+  // 서버에서 프로필을 처음 받아온 시점(혹은 갱신된 시점)에 폼의 로컬 편집 state로 복사
   useEffect(() => {
-    authApi
-      .getMe()
-      .then((data) => {
-        setProfile(data);
-        setWebhookUrl(data.discordRoom ?? '');
-        setDiscordAlarm(data.discordAlarm);
-        setTimezone(data.timezone);
-      })
-      .catch((err) => setError(extractErrorMessage(err, '설정을 불러오지 못했습니다.')))
-      .finally(() => setLoading(false));
-  }, []);
+    if (!profile) return;
+    setWebhookUrl(profile.discordRoom ?? '');
+    setDiscordAlarm(profile.discordAlarm);
+    setTimezone(profile.timezone);
+  }, [profile]);
 
-  const handleSave = async () => {
-    setError(null);
+  const handleSave = () => {
     setSavedMessage(null);
-    setSaving(true);
-    try {
-      const updated = await authApi.updateMe({
+    updateMutation.mutate(
+      {
         discordRoom: webhookUrl.trim() === '' ? null : webhookUrl.trim(),
         discordAlarm,
         timezone,
-      });
-      setProfile(updated);
-      setSavedMessage('저장했습니다.');
-    } catch (err) {
-      setError(extractErrorMessage(err, '저장에 실패했습니다.'));
-    } finally {
-      setSaving(false);
-    }
+      },
+      { onSuccess: () => setSavedMessage('저장했습니다.') },
+    );
   };
 
-  const handleRemoveWebhook = async () => {
-    setError(null);
+  const handleRemoveWebhook = () => {
     setSavedMessage(null);
-    setSaving(true);
-    try {
-      const updated = await authApi.updateMe({ discordRoom: null, discordAlarm: false });
-      setProfile(updated);
-      setWebhookUrl('');
-      setDiscordAlarm(false);
-      setSavedMessage('웹훅을 제거했습니다.');
-    } catch (err) {
-      setError(extractErrorMessage(err, '제거에 실패했습니다.'));
-    } finally {
-      setSaving(false);
-    }
+    updateMutation.mutate(
+      { discordRoom: null, discordAlarm: false },
+      {
+        onSuccess: () => {
+          setWebhookUrl('');
+          setDiscordAlarm(false);
+          setSavedMessage('웹훅을 제거했습니다.');
+        },
+      },
+    );
   };
 
   if (loading) {
@@ -89,6 +73,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       </SafeAreaView>
     );
   }
+
+  const saving = updateMutation.isPending;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -161,7 +147,11 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
         <Text style={styles.hint}>할 일 마감/알림 시각을 이 타임존 기준으로 계산합니다.</Text>
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {updateMutation.isError && (
+          <Text style={styles.error}>
+            {extractErrorMessage(updateMutation.error, '저장에 실패했습니다.')}
+          </Text>
+        )}
         {savedMessage && <Text style={styles.saved}>{savedMessage}</Text>}
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
