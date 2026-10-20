@@ -372,8 +372,8 @@ export function TaskListScreen() {
               <TouchableOpacity style={styles.completeButton} onPress={() => completeMutation.mutate(item.id)}>
                 <Text style={styles.completeButtonText}>완료</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.toggleButton} onPress={() => startEdit(item)}>
-                <Text style={styles.toggleButtonText}>수정</Text>
+              <TouchableOpacity style={styles.editButton} onPress={() => startEdit(item)}>
+                <Text style={styles.editButtonText}>수정</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.toggleButton}
@@ -381,8 +381,8 @@ export function TaskListScreen() {
               >
                 <Text style={styles.toggleButtonText}>{item.isActive ? '끄기' : '켜기'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.toggleButton} onPress={() => removeMutation.mutate(item.id)}>
-                <Text style={styles.toggleButtonText}>삭제</Text>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => removeMutation.mutate(item.id)}>
+                <Text style={styles.deleteButtonText}>삭제</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -475,8 +475,14 @@ const styles = StyleSheet.create({
   offBadge: { backgroundColor: '#f3f4f6', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
   offBadgeText: { color: '#6b7280', fontSize: 11, fontWeight: '600' },
   itemActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', maxWidth: 110 },
-  completeButton: { backgroundColor: '#4338ca', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  // 완료는 완료 뱃지(doneBadgeText)와 같은 emerald, 수정은 "추가" 버튼과 같은
+  // indigo, 삭제는 빨간색 — 끄기/켜기만 기존 중립 회색 유지
+  completeButton: { backgroundColor: '#059669', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   completeButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
+  editButton: { backgroundColor: '#4338ca', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  editButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
+  deleteButton: { backgroundColor: '#dc2626', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  deleteButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
   toggleButton: { backgroundColor: '#e5e7eb', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   toggleButtonText: { color: '#374151', fontWeight: '600', fontSize: 12 },
   editActions: { flexDirection: 'row', gap: 8, marginTop: 4 },

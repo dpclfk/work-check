@@ -61,6 +61,14 @@ const DEFAULT_FORM: CreateTaskInput = {
 const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
 const buttonClass =
   'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
+// 추가/수정은 앱의 "추가" 버튼과 같은 색, 완료는 완료 뱃지와 같은 색(emerald),
+// 삭제는 빨간색 — 나머지(켜기/끄기, 저장, 취소)는 기존 중립 버튼 그대로
+const primaryButtonClass =
+  'whitespace-nowrap rounded-lg bg-indigo-700 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-indigo-800';
+const completeButtonClass =
+  'whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-emerald-700';
+const deleteButtonClass =
+  'whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-red-700';
 // 카테고리:제목 = 3:7 비율. min-w-0 없으면 flex item의 암묵적 min-width:auto 때문에
 // 긴 텍스트가 선택됐을 때 비율이 깨짐(실제로 겪었던 버그)
 const categorySelectClass = `flex-[3] min-w-0 ${fieldClass}`;
@@ -257,7 +265,7 @@ export function TaskListPage() {
             />
             시
           </label>
-          <button type="submit" disabled={createMutation.isPending} className={buttonClass}>
+          <button type="submit" disabled={createMutation.isPending} className={primaryButtonClass}>
             {createMutation.isPending ? '추가 중...' : '추가'}
           </button>
         </div>
@@ -425,10 +433,10 @@ export function TaskListPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => completeMutation.mutate(task.id)} className={buttonClass}>
+                  <button onClick={() => completeMutation.mutate(task.id)} className={completeButtonClass}>
                     완료
                   </button>
-                  <button onClick={() => startEdit(task)} className={buttonClass}>
+                  <button onClick={() => startEdit(task)} className={primaryButtonClass}>
                     수정
                   </button>
                   <button
@@ -437,7 +445,7 @@ export function TaskListPage() {
                   >
                     {task.isActive ? '끄기' : '켜기'}
                   </button>
-                  <button onClick={() => removeMutation.mutate(task.id)} className={buttonClass}>
+                  <button onClick={() => removeMutation.mutate(task.id)} className={deleteButtonClass}>
                     삭제
                   </button>
                 </div>

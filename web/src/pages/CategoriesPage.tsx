@@ -29,6 +29,11 @@ function confirmDeleteSubItems(target: string): boolean {
 const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
 const buttonClass =
   'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
+// 추가/수정은 앱의 "추가" 버튼과 같은 색, 삭제는 빨간색 — 저장/취소는 기존 중립 버튼 그대로
+const primaryButtonClass =
+  'whitespace-nowrap rounded-lg bg-indigo-700 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-indigo-800';
+const deleteButtonClass =
+  'whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-red-700';
 
 export function CategoriesPage() {
   const { data: mainCategories = [], isLoading: mainsLoading } = useMainCategoriesQuery();
@@ -147,7 +152,7 @@ export function CategoriesPage() {
                 onChange={(e) => setNewMainName(e.target.value)}
                 className={`flex-1 ${fieldClass}`}
               />
-              <button type="submit" disabled={createMainMutation.isPending} className={buttonClass}>
+              <button type="submit" disabled={createMainMutation.isPending} className={primaryButtonClass}>
                 추가
               </button>
             </form>
@@ -177,10 +182,10 @@ export function CategoriesPage() {
                     <>
                       <span>{category.name}</span>
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => startEditMain(category)} className={buttonClass}>
+                        <button type="button" onClick={() => startEditMain(category)} className={primaryButtonClass}>
                           수정
                         </button>
-                        <button type="button" onClick={() => handleRemoveMain(category)} className={buttonClass}>
+                        <button type="button" onClick={() => handleRemoveMain(category)} className={deleteButtonClass}>
                           삭제
                         </button>
                       </div>
@@ -213,7 +218,7 @@ export function CategoriesPage() {
                 onChange={(e) => setNewSubName(e.target.value)}
                 className={`flex-1 ${fieldClass}`}
               />
-              <button type="submit" disabled={createSubMutation.isPending} className={buttonClass}>
+              <button type="submit" disabled={createSubMutation.isPending} className={primaryButtonClass}>
                 추가
               </button>
             </form>
@@ -262,10 +267,10 @@ export function CategoriesPage() {
                         )}
                       </span>
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => startEditSub(category)} className={buttonClass}>
+                        <button type="button" onClick={() => startEditSub(category)} className={primaryButtonClass}>
                           수정
                         </button>
-                        <button type="button" onClick={() => handleRemoveSub(category)} className={buttonClass}>
+                        <button type="button" onClick={() => handleRemoveSub(category)} className={deleteButtonClass}>
                           삭제
                         </button>
                       </div>

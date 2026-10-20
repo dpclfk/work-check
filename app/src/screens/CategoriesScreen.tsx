@@ -183,11 +183,11 @@ export function CategoriesScreen() {
             <View style={styles.cardRow}>
               <Text style={styles.cardName}>{category.name}</Text>
               <View style={styles.cardActions}>
-                <TouchableOpacity style={styles.smallButton} onPress={() => startEditMain(category)}>
-                  <Text style={styles.smallButtonText}>수정</Text>
+                <TouchableOpacity style={styles.editButton} onPress={() => startEditMain(category)}>
+                  <Text style={styles.editButtonText}>수정</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.smallButton} onPress={() => handleRemoveMain(category)}>
-                  <Text style={styles.smallButtonText}>삭제</Text>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemoveMain(category)}>
+                  <Text style={styles.deleteButtonText}>삭제</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -246,11 +246,11 @@ export function CategoriesScreen() {
                 )}
               </View>
               <View style={styles.cardActions}>
-                <TouchableOpacity style={styles.smallButton} onPress={() => startEditSub(category)}>
-                  <Text style={styles.smallButtonText}>수정</Text>
+                <TouchableOpacity style={styles.editButton} onPress={() => startEditSub(category)}>
+                  <Text style={styles.editButtonText}>수정</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.smallButton} onPress={() => handleRemoveSub(category)}>
-                  <Text style={styles.smallButtonText}>삭제</Text>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemoveSub(category)}>
+                  <Text style={styles.deleteButtonText}>삭제</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -281,15 +281,14 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   dropdownSpacing: { marginBottom: 10 },
+  // 추가 버튼은 할 일 목록의 "추가" 버튼과 같은 indigo
   addButton: {
-    backgroundColor: 'white',
+    backgroundColor: '#4338ca',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
     paddingHorizontal: 16,
     justifyContent: 'center',
   },
-  addButtonText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  addButtonText: { fontSize: 14, fontWeight: '600', color: 'white' },
   card: {
     backgroundColor: 'white',
     borderRadius: 10,
@@ -314,6 +313,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   smallButtonText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  // 수정은 "추가"와 같은 indigo, 삭제는 빨간색(저장/취소는 위 smallButton 그대로)
+  editButton: { backgroundColor: '#4338ca', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
+  editButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
+  deleteButton: { backgroundColor: '#dc2626', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
+  deleteButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
   editRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   editInput: { flex: 1 },
   badge: { backgroundColor: '#eef2ff', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
