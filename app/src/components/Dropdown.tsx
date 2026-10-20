@@ -1,16 +1,5 @@
 import { useRef, useState } from 'react';
-import {
-  Dimensions,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Dimensions, Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export interface DropdownOption<T> {
   label: string;
@@ -24,7 +13,7 @@ interface DropdownProps<T> {
   options: DropdownOption<T>[];
   onChange: (value: T) => void;
   placeholder?: string;
-  style?: StyleProp<ViewStyle>;
+  className?: string;
 }
 
 const LIST_MAX_HEIGHT = 220;
@@ -39,7 +28,7 @@ export function Dropdown<T extends string | number>({
   options,
   onChange,
   placeholder,
-  style,
+  className,
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(
@@ -58,6 +47,8 @@ export function Dropdown<T extends string | number>({
   // 트리거 아래에 띄우되, 화면 아래쪽에 공간이 부족하면 위로 뒤집어서 띄움
   const screenHeight = Dimensions.get('window').height;
   const openBelow = anchor ? anchor.y + anchor.height + LIST_MAX_HEIGHT + 8 <= screenHeight : true;
+  // measureInWindow로 잰 좌표는 매번 달라지는 런타임 값이라 className으로
+  // 못 쓰고 계속 인라인 style로 남겨둬야 함(위치 계산 자체는 Tailwind 영역 밖)
   const listPosition = anchor
     ? openBelow
       ? { top: anchor.y + anchor.height + 4, left: anchor.x, width: anchor.width }
@@ -65,34 +56,52 @@ export function Dropdown<T extends string | number>({
     : null;
 
   return (
-    <View style={style}>
-      <TouchableOpacity ref={triggerRef} style={styles.trigger} onPress={openDropdown}>
-        <Text style={styles.triggerText} numberOfLines={1}>
+    <View className={className}>
+      <TouchableOpacity
+        ref={triggerRef}
+        className="flex-row items-center justify-between rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5"
+        onPress={openDropdown}
+      >
+        <Text className="flex-1 text-sm text-[#111827]" numberOfLines={1}>
           {selected?.label ?? placeholder ?? '선택'}
         </Text>
-        <Text style={styles.caret}>{open ? '▲' : '▼'}</Text>
+        <Text className="ml-1.5 text-[10px] text-[#9ca3af]">{open ? '▲' : '▼'}</Text>
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
+        <Pressable className="flex-1" onPress={() => setOpen(false)}>
           {listPosition && (
-            <View style={[styles.list, listPosition]}>
-              <ScrollView style={styles.scroll} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            <View
+              className="absolute max-h-[220px] rounded-lg border border-[#e5e7eb] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
+              style={{ ...listPosition, elevation: 8 }}
+            >
+              <ScrollView
+                className="max-h-[220px]"
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
                 {options.map((opt, i) =>
                   opt.isHeader ? (
-                    <Text key={`h-${i}`} style={styles.groupHeader}>
+                    <Text
+                      key={`h-${i}`}
+                      className="px-3 pb-1 pt-2 text-[11px] font-bold text-[#9ca3af]"
+                    >
                       {opt.label}
                     </Text>
                   ) : (
                     <TouchableOpacity
                       key={i}
-                      style={styles.item}
+                      className="border-b border-[#f3f4f6] px-3 py-2.5"
                       onPress={() => {
                         onChange(opt.value);
                         setOpen(false);
                       }}
                     >
-                      <Text style={opt.value === value ? styles.itemActive : styles.itemText}>
+                      <Text
+                        className={`text-sm ${
+                          opt.value === value ? 'font-bold text-indigo-700' : 'text-[#111827]'
+                        }`}
+                      >
                         {opt.label}
                       </Text>
                     </TouchableOpacity>
@@ -106,50 +115,3 @@ export function Dropdown<T extends string | number>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  trigger: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  triggerText: { flex: 1, fontSize: 14, color: '#111827' },
-  caret: { fontSize: 10, color: '#9ca3af', marginLeft: 6 },
-  overlay: { flex: 1 },
-  list: {
-    position: 'absolute',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    maxHeight: LIST_MAX_HEIGHT,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 8,
-  },
-  scroll: { maxHeight: LIST_MAX_HEIGHT },
-  groupHeader: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9ca3af',
-  },
-  item: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  itemText: { fontSize: 14, color: '#111827' },
-  itemActive: { fontSize: 14, color: '#4338ca', fontWeight: '700' },
-});

@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CreateTaskInput, Task, TaskCycle, UpdateTaskInput } from '../api/tasks';
 import { Dropdown, DropdownOption } from '../components/Dropdown';
 import { useMainCategoriesQuery, useSubCategoriesQuery } from '../queries/categories';
@@ -52,6 +44,10 @@ const MONTH_DAY_OPTIONS: DropdownOption<number>[] = Array.from({ length: 31 }, (
 );
 
 const NO_CATEGORY = '__none__';
+
+// 입력칸 공용 클래스 + 카드 공용 클래스(Tailwind로 못 표현하는 shadow는 인라인 elevation으로 보강)
+const INPUT_CLASS = 'rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm';
+const CARD_CLASS = 'rounded-xl bg-white p-4 mb-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]';
 
 /** cycleType을 바꿀 때 cycleValue 기본값 — WEEKLY/MONTHLY는 "오늘"로 미리 채워서
  * 사용자가 아예 안 건드려도 항상 유효한 값이 전송되게 함(서버가 cycleValue
@@ -284,19 +280,19 @@ export function TaskListScreen() {
 
   const createForm = (
     <View>
-      <Text style={styles.title}>할 일 체크리스트</Text>
+      <Text className="mb-3 text-xl font-bold">할 일 체크리스트</Text>
 
-      <View style={styles.formCard}>
+      <View className="mb-4 rounded-xl bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]" style={{ elevation: 1 }}>
         <Dropdown
           value={form.subCategoryId != null ? String(form.subCategoryId) : NO_CATEGORY}
           options={subCategoryOptions}
           onChange={(v) =>
             setForm({ ...form, subCategoryId: v === NO_CATEGORY ? undefined : Number(v) })
           }
-          style={styles.field}
+          className="mb-2.5"
         />
         <TextInput
-          style={[styles.input, styles.field]}
+          className={`${INPUT_CLASS} mb-2.5`}
           placeholder="할 일 제목"
           value={form.name}
           onChangeText={(name) => setForm({ ...form, name })}
@@ -305,14 +301,14 @@ export function TaskListScreen() {
           value={form.cycleType}
           options={CYCLE_OPTIONS}
           onChange={(cycleType) => setForm({ ...form, cycleType, cycleValue: defaultCycleValue(cycleType) })}
-          style={styles.field}
+          className="mb-2.5"
         />
         {form.cycleType === 'WEEKLY' && (
           <Dropdown
             value={form.cycleValue ?? 0}
             options={WEEKDAY_OPTIONS}
             onChange={(cycleValue) => setForm({ ...form, cycleValue })}
-            style={styles.field}
+            className="mb-2.5"
           />
         )}
         {form.cycleType === 'MONTHLY' && (
@@ -320,40 +316,46 @@ export function TaskListScreen() {
             value={form.cycleValue ?? 1}
             options={MONTH_DAY_OPTIONS}
             onChange={(cycleValue) => setForm({ ...form, cycleValue })}
-            style={styles.field}
+            className="mb-2.5"
           />
         )}
         {form.cycleType === 'ONCE' && (
           <TextInput
-            style={[styles.input, styles.field]}
+            className={`${INPUT_CLASS} mb-2.5`}
             placeholder="YYYY-MM-DD"
             value={form.dueDate ?? ''}
             onChangeText={(dueDate) => setForm({ ...form, dueDate })}
           />
         )}
-        <View style={styles.hourRow}>
-          <View style={styles.hourField}>
-            <Text style={styles.hourLabel}>알림(시)</Text>
+        <View className="mb-2.5 flex-row gap-3">
+          <View className="flex-1">
+            <Text className="mb-1 text-xs text-[#6b7280]">알림(시)</Text>
             <TextInput
-              style={styles.hourInput}
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(form.remindTime)}
               onChangeText={(v) => setForm({ ...form, remindTime: Number(v) || 0 })}
             />
           </View>
-          <View style={styles.hourField}>
-            <Text style={styles.hourLabel}>마감(시)</Text>
+          <View className="flex-1">
+            <Text className="mb-1 text-xs text-[#6b7280]">마감(시)</Text>
             <TextInput
-              style={styles.hourInput}
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(form.deadLine)}
               onChangeText={(v) => setForm({ ...form, deadLine: Number(v) || 0 })}
             />
           </View>
         </View>
-        {formError && <Text style={styles.error}>{formError}</Text>}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={createMutation.isPending}>
-          <Text style={styles.submitButtonText}>{createMutation.isPending ? '추가 중...' : '추가'}</Text>
+        {formError && <Text className="mb-2 text-[13px] text-red-600">{formError}</Text>}
+        <TouchableOpacity
+          className="items-center rounded-lg bg-indigo-700 py-3"
+          onPress={handleSubmit}
+          disabled={createMutation.isPending}
+        >
+          <Text className="text-[15px] font-semibold text-white">
+            {createMutation.isPending ? '추가 중...' : '추가'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -361,17 +363,17 @@ export function TaskListScreen() {
 
   const renderTaskRow = (task: Task) =>
     editingTaskId === task.id ? (
-      <View style={[styles.card, styles.indent]}>
+      <View className={`${CARD_CLASS} ml-4`} style={{ elevation: 1 }}>
         <Dropdown
           value={editForm.subCategoryId != null ? String(editForm.subCategoryId) : NO_CATEGORY}
           options={subCategoryOptions}
           onChange={(v) =>
             setEditForm({ ...editForm, subCategoryId: v === NO_CATEGORY ? null : Number(v) })
           }
-          style={styles.field}
+          className="mb-2.5"
         />
         <TextInput
-          style={[styles.input, styles.field]}
+          className={`${INPUT_CLASS} mb-2.5`}
           placeholder="할 일 제목"
           value={editForm.name ?? ''}
           onChangeText={(name) => setEditForm({ ...editForm, name })}
@@ -382,14 +384,14 @@ export function TaskListScreen() {
           onChange={(cycleType) =>
             setEditForm({ ...editForm, cycleType, cycleValue: defaultCycleValue(cycleType) })
           }
-          style={styles.field}
+          className="mb-2.5"
         />
         {editForm.cycleType === 'WEEKLY' && (
           <Dropdown
             value={editForm.cycleValue ?? 0}
             options={WEEKDAY_OPTIONS}
             onChange={(cycleValue) => setEditForm({ ...editForm, cycleValue })}
-            style={styles.field}
+            className="mb-2.5"
           />
         )}
         {editForm.cycleType === 'MONTHLY' && (
@@ -397,87 +399,103 @@ export function TaskListScreen() {
             value={editForm.cycleValue ?? 1}
             options={MONTH_DAY_OPTIONS}
             onChange={(cycleValue) => setEditForm({ ...editForm, cycleValue })}
-            style={styles.field}
+            className="mb-2.5"
           />
         )}
         {editForm.cycleType === 'ONCE' && (
           <TextInput
-            style={[styles.input, styles.field]}
+            className={`${INPUT_CLASS} mb-2.5`}
             placeholder="YYYY-MM-DD"
             value={editForm.dueDate ?? ''}
             onChangeText={(dueDate) => setEditForm({ ...editForm, dueDate })}
           />
         )}
-        <View style={styles.hourRow}>
-          <View style={styles.hourField}>
-            <Text style={styles.hourLabel}>알림(시)</Text>
+        <View className="mb-2.5 flex-row gap-3">
+          <View className="flex-1">
+            <Text className="mb-1 text-xs text-[#6b7280]">알림(시)</Text>
             <TextInput
-              style={styles.hourInput}
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(editForm.remindTime ?? 0)}
               onChangeText={(v) => setEditForm({ ...editForm, remindTime: Number(v) || 0 })}
             />
           </View>
-          <View style={styles.hourField}>
-            <Text style={styles.hourLabel}>마감(시)</Text>
+          <View className="flex-1">
+            <Text className="mb-1 text-xs text-[#6b7280]">마감(시)</Text>
             <TextInput
-              style={styles.hourInput}
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(editForm.deadLine ?? 0)}
               onChangeText={(v) => setEditForm({ ...editForm, deadLine: Number(v) || 0 })}
             />
           </View>
         </View>
-        {editError && <Text style={styles.error}>{editError}</Text>}
-        <View style={styles.editActions}>
+        {editError && <Text className="mb-2 text-[13px] text-red-600">{editError}</Text>}
+        <View className="mt-1 flex-row gap-2">
           <TouchableOpacity
-            style={styles.smallButton}
+            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2"
             onPress={() => saveEdit(task.id)}
             disabled={updateMutation.isPending}
           >
-            <Text style={styles.smallButtonText}>{updateMutation.isPending ? '저장 중...' : '저장'}</Text>
+            <Text className="text-[13px] font-semibold text-[#374151]">
+              {updateMutation.isPending ? '저장 중...' : '저장'}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.smallButton} onPress={cancelEdit}>
-            <Text style={styles.smallButtonText}>취소</Text>
+          <TouchableOpacity
+            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2"
+            onPress={cancelEdit}
+          >
+            <Text className="text-[13px] font-semibold text-[#374151]">취소</Text>
           </TouchableOpacity>
         </View>
       </View>
     ) : (
-      <View style={[styles.item, styles.indent, !task.isActive && styles.itemInactive]}>
-        <View style={styles.itemText}>
-          <Text style={styles.itemTitle}>{task.name}</Text>
-          <View style={styles.badgeRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{deadlineLabel(task)}</Text>
+      <View
+        className={`${CARD_CLASS} ml-4 flex-row items-center justify-between ${
+          !task.isActive ? 'opacity-60' : ''
+        }`}
+        style={{ elevation: 1 }}
+      >
+        <View className="flex-1">
+          <Text className="text-base font-semibold">{task.name}</Text>
+          <View className="mt-1.5 flex-row flex-wrap items-center gap-1.5">
+            <View className="rounded-full bg-[#eef2ff] px-2 py-0.5">
+              <Text className="text-[11px] font-semibold text-indigo-700">{deadlineLabel(task)}</Text>
             </View>
-            <Text style={styles.itemMeta}>{remindLabel(task)}</Text>
+            <Text className="text-xs text-[#6b7280]">{remindLabel(task)}</Text>
             {task.isCompleted && (
-              <View style={styles.doneBadge}>
-                <Text style={styles.doneBadgeText}>완료</Text>
+              <View className="rounded-full bg-emerald-100 px-2 py-0.5">
+                <Text className="text-[11px] font-semibold text-emerald-600">완료</Text>
               </View>
             )}
             {!task.isActive && (
-              <View style={styles.offBadge}>
-                <Text style={styles.offBadgeText}>꺼짐</Text>
+              <View className="rounded-full bg-[#f3f4f6] px-2 py-0.5">
+                <Text className="text-[11px] font-semibold text-[#6b7280]">꺼짐</Text>
               </View>
             )}
           </View>
         </View>
-        <View style={styles.itemActions}>
-          <TouchableOpacity style={styles.completeButton} onPress={() => completeMutation.mutate(task.id)}>
-            <Text style={styles.completeButtonText}>완료</Text>
+        <View className="max-w-[110px] flex-row flex-wrap justify-end gap-1.5">
+          <TouchableOpacity
+            className="rounded-lg bg-emerald-600 px-3 py-[7px]"
+            onPress={() => completeMutation.mutate(task.id)}
+          >
+            <Text className="text-xs font-semibold text-white">완료</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.editButton} onPress={() => startEdit(task)}>
-            <Text style={styles.editButtonText}>수정</Text>
+          <TouchableOpacity className="rounded-lg bg-indigo-700 px-3 py-[7px]" onPress={() => startEdit(task)}>
+            <Text className="text-xs font-semibold text-white">수정</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.toggleButton}
+            className="rounded-lg bg-[#e5e7eb] px-3 py-[7px]"
             onPress={() => setActiveMutation.mutate({ id: task.id, isActive: !task.isActive })}
           >
-            <Text style={styles.toggleButtonText}>{task.isActive ? '끄기' : '켜기'}</Text>
+            <Text className="text-xs font-semibold text-[#374151]">{task.isActive ? '끄기' : '켜기'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton} onPress={() => removeMutation.mutate(task.id)}>
-            <Text style={styles.deleteButtonText}>삭제</Text>
+          <TouchableOpacity
+            className="rounded-lg bg-red-600 px-3 py-[7px]"
+            onPress={() => removeMutation.mutate(task.id)}
+          >
+            <Text className="text-xs font-semibold text-white">삭제</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -485,27 +503,33 @@ export function TaskListScreen() {
 
   return (
     <FlatList
-      style={styles.list}
+      className="flex-1 bg-[#f5f6f8]"
       data={rows}
       keyExtractor={(row) => row.key}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-      contentContainerStyle={styles.listContent}
+      contentContainerClassName="p-4 gap-2"
       ListHeaderComponent={createForm}
-      ListEmptyComponent={<Text style={styles.empty}>등록된 할 일이 없습니다.</Text>}
+      ListEmptyComponent={<Text className="mt-8 text-center text-[#6b7280]">등록된 할 일이 없습니다.</Text>}
       renderItem={({ item: row }) => {
         if (row.type === 'main') {
           return (
-            <TouchableOpacity style={styles.mainHeader} onPress={() => toggleGroup(row.key)}>
-              <Text style={styles.headerChevron}>{row.collapsed ? '▶' : '▼'}</Text>
-              <Text style={styles.mainHeaderText}>{row.label}</Text>
+            <TouchableOpacity
+              className="mb-0.5 mt-1 flex-row items-center gap-1.5"
+              onPress={() => toggleGroup(row.key)}
+            >
+              <Text className="text-[11px] text-[#9ca3af]">{row.collapsed ? '▶' : '▼'}</Text>
+              <Text className="text-[15px] font-bold text-[#1f2937]">{row.label}</Text>
             </TouchableOpacity>
           );
         }
         if (row.type === 'sub') {
           return (
-            <TouchableOpacity style={styles.subHeader} onPress={() => toggleGroup(row.key)}>
-              <Text style={styles.headerChevronSmall}>{row.collapsed ? '▶' : '▼'}</Text>
-              <Text style={styles.subHeaderText}>{row.label}</Text>
+            <TouchableOpacity
+              className="mb-0.5 ml-4 flex-row items-center gap-1.5"
+              onPress={() => toggleGroup(row.key)}
+            >
+              <Text className="text-[10px] text-[#9ca3af]">{row.collapsed ? '▶' : '▼'}</Text>
+              <Text className="text-[13px] font-semibold text-[#6b7280]">{row.label}</Text>
             </TouchableOpacity>
           );
         }
@@ -514,117 +538,3 @@ export function TaskListScreen() {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  list: { flex: 1, backgroundColor: '#f5f6f8' },
-  listContent: { padding: 16, gap: 8 },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
-  formCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  field: { marginBottom: 10 },
-  input: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  hourRow: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-  hourField: { flex: 1 },
-  hourLabel: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
-  hourInput: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  error: { color: '#dc2626', fontSize: 13, marginBottom: 8 },
-  submitButton: {
-    backgroundColor: '#4338ca',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  submitButtonText: { color: 'white', fontWeight: '600', fontSize: 15 },
-  empty: { textAlign: 'center', color: '#6b7280', marginTop: 32 },
-  // 메인/서브카테고리 접기 헤더
-  mainHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 2 },
-  mainHeaderText: { fontSize: 15, fontWeight: '700', color: '#1f2937' },
-  subHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16, marginBottom: 2 },
-  subHeaderText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
-  headerChevron: { fontSize: 11, color: '#9ca3af' },
-  headerChevronSmall: { fontSize: 10, color: '#9ca3af' },
-  // 서브카테고리 아래 할 일임을 보여주는 들여쓰기(메인 전용 "카테고리 없음" 아래 할 일도 통일감 있게 같이 적용)
-  indent: { marginLeft: 16 },
-  item: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  card: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  itemText: { flex: 1 },
-  itemTitle: { fontSize: 16, fontWeight: '600' },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 6 },
-  itemMeta: { fontSize: 12, color: '#6b7280' },
-  itemInactive: { opacity: 0.6 },
-  badge: { backgroundColor: '#eef2ff', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText: { color: '#4338ca', fontSize: 11, fontWeight: '600' },
-  doneBadge: { backgroundColor: '#d1fae5', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  doneBadgeText: { color: '#059669', fontSize: 11, fontWeight: '600' },
-  offBadge: { backgroundColor: '#f3f4f6', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  offBadgeText: { color: '#6b7280', fontSize: 11, fontWeight: '600' },
-  itemActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', maxWidth: 110 },
-  // 완료는 완료 뱃지(doneBadgeText)와 같은 emerald, 수정은 "추가" 버튼과 같은
-  // indigo, 삭제는 빨간색 — 끄기/켜기만 기존 중립 회색 유지
-  completeButton: { backgroundColor: '#059669', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  completeButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
-  editButton: { backgroundColor: '#4338ca', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  editButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
-  deleteButton: { backgroundColor: '#dc2626', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  deleteButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
-  toggleButton: { backgroundColor: '#e5e7eb', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  toggleButtonText: { color: '#374151', fontWeight: '600', fontSize: 12 },
-  editActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  smallButton: {
-    backgroundColor: 'white',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  smallButtonText: { fontSize: 13, fontWeight: '600', color: '#374151' },
-});

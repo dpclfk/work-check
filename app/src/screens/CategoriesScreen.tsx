@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MainCategory, SubCategory } from '../api/categories';
 import { Dropdown, DropdownOption } from '../components/Dropdown';
 import {
@@ -21,6 +21,9 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 const NO_MAIN = '__none__';
+
+// 카드 공용 스타일(Tailwind로 못 표현하는 shadow는 인라인 elevation으로 보강)
+const CARD_CLASS = 'rounded-[10px] bg-white p-3 mb-2 shadow-[0_1px_3px_rgba(0,0,0,0.06)]';
 
 /** 삭제 전 하위 항목까지 같이 지울지 물어봄 — 3가지 선택지(취소/분리/함께삭제) */
 function confirmDelete(target: string, onDeleteTogether: () => void, onDetachOnly: () => void) {
@@ -157,34 +160,46 @@ export function CategoriesScreen() {
   ].filter((group) => group.subs.length > 0);
 
   const renderSubCategory = (category: SubCategory) => (
-    <View key={category.id} style={[styles.card, styles.indent]}>
+    <View key={category.id} className={`${CARD_CLASS} ml-4`} style={{ elevation: 1 }}>
       {editingSubId === category.id ? (
         <View style={{ gap: 8 }}>
           <Dropdown value={editingSubMainId} options={mainOptions} onChange={setEditingSubMainId} />
-          <View style={styles.editRow}>
+          <View className="flex-row items-center gap-2">
             <TextInput
-              style={[styles.input, styles.editInput]}
+              className="flex-1 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm"
               value={editingSubName}
               onChangeText={setEditingSubName}
               autoFocus
             />
-            <TouchableOpacity style={styles.smallButton} onPress={() => saveEditSub(category.id)}>
-              <Text style={styles.smallButtonText}>저장</Text>
+            <TouchableOpacity
+              className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+              onPress={() => saveEditSub(category.id)}
+            >
+              <Text className="text-xs font-semibold text-[#374151]">저장</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.smallButton} onPress={() => setEditingSubId(null)}>
-              <Text style={styles.smallButtonText}>취소</Text>
+            <TouchableOpacity
+              className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+              onPress={() => setEditingSubId(null)}
+            >
+              <Text className="text-xs font-semibold text-[#374151]">취소</Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : (
-        <View style={styles.cardRow}>
-          <Text style={styles.cardName}>{category.name}</Text>
-          <View style={styles.cardActions}>
-            <TouchableOpacity style={styles.editButton} onPress={() => startEditSub(category)}>
-              <Text style={styles.editButtonText}>수정</Text>
+        <View className="flex-row items-center justify-between gap-2">
+          <Text className="text-[15px] text-[#111827]">{category.name}</Text>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              className="rounded-md bg-indigo-700 px-2.5 py-1.5"
+              onPress={() => startEditSub(category)}
+            >
+              <Text className="text-xs font-semibold text-white">수정</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemoveSub(category)}>
-              <Text style={styles.deleteButtonText}>삭제</Text>
+            <TouchableOpacity
+              className="rounded-md bg-red-600 px-2.5 py-1.5"
+              onPress={() => handleRemoveSub(category)}
+            >
+              <Text className="text-xs font-semibold text-white">삭제</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -194,159 +209,119 @@ export function CategoriesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>불러오는 중...</Text>
+      <View className="flex-1 bg-[#f5f6f8]">
+        <Text className="p-4 text-[#6b7280]">불러오는 중...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>카테고리 관리</Text>
-      {error && <Text style={styles.error}>{extractErrorMessage(error, '요청을 처리하지 못했습니다.')}</Text>}
+    <ScrollView className="flex-1 bg-[#f5f6f8]" contentContainerClassName="p-4 pb-10">
+      <Text className="mb-4 text-[22px] font-bold">카테고리 관리</Text>
+      {error && (
+        <Text className="mb-2 text-[13px] text-red-600">
+          {extractErrorMessage(error, '요청을 처리하지 못했습니다.')}
+        </Text>
+      )}
 
-      <Text style={styles.sectionTitle}>메인 카테고리</Text>
-      <View style={styles.addRow}>
+      <Text className="mb-2.5 mt-5 text-[15px] font-bold text-[#374151]">메인 카테고리</Text>
+      <View className="mb-2.5 flex-row gap-2">
         <TextInput
-          style={styles.input}
+          className="flex-1 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm"
           placeholder="메인 카테고리 이름"
           value={newMainName}
           onChangeText={setNewMainName}
         />
-        <TouchableOpacity style={styles.addButton} onPress={handleCreateMain} disabled={createMainMutation.isPending}>
-          <Text style={styles.addButtonText}>추가</Text>
+        <TouchableOpacity
+          className="justify-center rounded-lg bg-indigo-700 px-4"
+          onPress={handleCreateMain}
+          disabled={createMainMutation.isPending}
+        >
+          <Text className="text-sm font-semibold text-white">추가</Text>
         </TouchableOpacity>
       </View>
 
       {mainCategories.map((category) => (
-        <View key={category.id} style={styles.card}>
+        <View key={category.id} className={CARD_CLASS} style={{ elevation: 1 }}>
           {editingMainId === category.id ? (
-            <View style={styles.editRow}>
+            <View className="flex-row items-center gap-2">
               <TextInput
-                style={[styles.input, styles.editInput]}
+                className="flex-1 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm"
                 value={editingMainName}
                 onChangeText={setEditingMainName}
                 autoFocus
               />
-              <TouchableOpacity style={styles.smallButton} onPress={() => saveEditMain(category.id)}>
-                <Text style={styles.smallButtonText}>저장</Text>
+              <TouchableOpacity
+                className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+                onPress={() => saveEditMain(category.id)}
+              >
+                <Text className="text-xs font-semibold text-[#374151]">저장</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.smallButton} onPress={() => setEditingMainId(null)}>
-                <Text style={styles.smallButtonText}>취소</Text>
+              <TouchableOpacity
+                className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+                onPress={() => setEditingMainId(null)}
+              >
+                <Text className="text-xs font-semibold text-[#374151]">취소</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.cardRow}>
-              <Text style={styles.cardName}>{category.name}</Text>
-              <View style={styles.cardActions}>
-                <TouchableOpacity style={styles.editButton} onPress={() => startEditMain(category)}>
-                  <Text style={styles.editButtonText}>수정</Text>
+            <View className="flex-row items-center justify-between gap-2">
+              <Text className="text-[15px] text-[#111827]">{category.name}</Text>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  className="rounded-md bg-indigo-700 px-2.5 py-1.5"
+                  onPress={() => startEditMain(category)}
+                >
+                  <Text className="text-xs font-semibold text-white">수정</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemoveMain(category)}>
-                  <Text style={styles.deleteButtonText}>삭제</Text>
+                <TouchableOpacity
+                  className="rounded-md bg-red-600 px-2.5 py-1.5"
+                  onPress={() => handleRemoveMain(category)}
+                >
+                  <Text className="text-xs font-semibold text-white">삭제</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
         </View>
       ))}
-      {mainCategories.length === 0 && <Text style={styles.empty}>등록된 메인 카테고리가 없습니다.</Text>}
+      {mainCategories.length === 0 && (
+        <Text className="text-[13px] text-[#6b7280]">등록된 메인 카테고리가 없습니다.</Text>
+      )}
 
-      <Text style={styles.sectionTitle}>서브 카테고리</Text>
-      <Dropdown
-        value={newSubMainId}
-        options={mainOptions}
-        onChange={setNewSubMainId}
-        style={styles.dropdownSpacing}
-      />
-      <View style={styles.addRow}>
+      <Text className="mb-2.5 mt-5 text-[15px] font-bold text-[#374151]">서브 카테고리</Text>
+      <Dropdown value={newSubMainId} options={mainOptions} onChange={setNewSubMainId} className="mb-2.5" />
+      <View className="mb-2.5 flex-row gap-2">
         <TextInput
-          style={styles.input}
+          className="flex-1 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm"
           placeholder="서브 카테고리 이름"
           value={newSubName}
           onChangeText={setNewSubName}
         />
-        <TouchableOpacity style={styles.addButton} onPress={handleCreateSub} disabled={createSubMutation.isPending}>
-          <Text style={styles.addButtonText}>추가</Text>
+        <TouchableOpacity
+          className="justify-center rounded-lg bg-indigo-700 px-4"
+          onPress={handleCreateSub}
+          disabled={createSubMutation.isPending}
+        >
+          <Text className="text-sm font-semibold text-white">추가</Text>
         </TouchableOpacity>
       </View>
 
       {subGroups.map((group) => (
         <View key={group.key}>
-          <TouchableOpacity style={styles.mainHeader} onPress={() => toggleGroup(group.key)}>
-            <Text style={styles.headerChevron}>{collapsedGroups.has(group.key) ? '▶' : '▼'}</Text>
-            <Text style={styles.mainHeaderText}>{group.label}</Text>
+          <TouchableOpacity
+            className="mb-0.5 mt-1 flex-row items-center gap-1.5"
+            onPress={() => toggleGroup(group.key)}
+          >
+            <Text className="text-[11px] text-[#9ca3af]">{collapsedGroups.has(group.key) ? '▶' : '▼'}</Text>
+            <Text className="text-[15px] font-bold text-[#1f2937]">{group.label}</Text>
           </TouchableOpacity>
           {!collapsedGroups.has(group.key) && group.subs.map(renderSubCategory)}
         </View>
       ))}
-      {subCategories.length === 0 && <Text style={styles.empty}>등록된 서브 카테고리가 없습니다.</Text>}
+      {subCategories.length === 0 && (
+        <Text className="text-[13px] text-[#6b7280]">등록된 서브 카테고리가 없습니다.</Text>
+      )}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f6f8' },
-  content: { padding: 16, paddingBottom: 40 },
-  loadingText: { padding: 16, color: '#6b7280' },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 20, marginBottom: 10 },
-  error: { color: '#dc2626', fontSize: 13, marginBottom: 8 },
-  addRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  input: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  dropdownSpacing: { marginBottom: 10 },
-  // 추가 버튼은 할 일 목록의 "추가" 버튼과 같은 indigo
-  addButton: {
-    backgroundColor: '#4338ca',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  addButtonText: { fontSize: 14, fontWeight: '600', color: 'white' },
-  // 메인카테고리 접기 헤더(할 일 목록과 동일한 스타일)
-  mainHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 2 },
-  mainHeaderText: { fontSize: 15, fontWeight: '700', color: '#1f2937' },
-  headerChevron: { fontSize: 11, color: '#9ca3af' },
-  // 메인카테고리 아래 서브카테고리임을 보여주는 들여쓰기
-  indent: { marginLeft: 16 },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  cardName: { fontSize: 15, color: '#111827' },
-  cardActions: { flexDirection: 'row', gap: 8 },
-  smallButton: {
-    backgroundColor: 'white',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  smallButtonText: { fontSize: 12, fontWeight: '600', color: '#374151' },
-  // 수정은 "추가"와 같은 indigo, 삭제는 빨간색(저장/취소는 위 smallButton 그대로)
-  editButton: { backgroundColor: '#4338ca', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
-  editButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
-  deleteButton: { backgroundColor: '#dc2626', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
-  deleteButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
-  editRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  editInput: { flex: 1 },
-  empty: { color: '#6b7280', fontSize: 13 },
-});

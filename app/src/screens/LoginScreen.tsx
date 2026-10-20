@@ -1,13 +1,6 @@
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
@@ -36,17 +29,18 @@ export function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1 bg-[#f5f6f8]">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}
+        className="flex-1 justify-center gap-3 p-6"
       >
-        <Text style={styles.title}>Work Check</Text>
-        <Text style={styles.subTitle}>매일/매주/매달 해야할일을 까먹지않게</Text>
-        
+        <Text className="mb-2 text-center text-[28px] font-bold">Work Check</Text>
+        <Text className="mb-6 text-center text-xl font-bold text-[#6a7282]">
+          매일/매주/매달 해야할일을 까먹지않게
+        </Text>
 
         <TextInput
-          style={styles.input}
+          className="rounded-lg border border-[#e5e7eb] bg-white p-3.5 text-base"
           placeholder="이메일"
           autoCapitalize="none"
           autoCorrect={false}
@@ -56,18 +50,20 @@ export function LoginScreen() {
           maxLength={254}
         />
         <TextInput
-          style={styles.input}
+          className="rounded-lg border border-[#e5e7eb] bg-white p-3.5 text-base"
           placeholder="비밀번호"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
         {mode === 'register' && (
-          <Text style={styles.hint}>비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.</Text>
+          <Text className="-mt-1 text-xs text-[#9ca3af]">
+            비밀번호는 최소 8자, 소문자·숫자·특수문자를 포함해야 합니다.
+          </Text>
         )}
 
         {activeMutation.isError && (
-          <Text style={styles.error}>
+          <Text className="text-[13px] text-red-600">
             {extractErrorMessage(
               activeMutation.error,
               mode === 'login' ? '로그인에 실패했습니다.' : '회원가입에 실패했습니다.',
@@ -76,17 +72,17 @@ export function LoginScreen() {
         )}
 
         <TouchableOpacity
-          style={styles.submitButton}
+          className="mt-2 items-center rounded-lg bg-indigo-700 p-3.5"
           onPress={handleSubmit}
           disabled={activeMutation.isPending}
         >
-          <Text style={styles.submitButtonText}>
+          <Text className="text-base font-semibold text-white">
             {activeMutation.isPending ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={toggleMode}>
-          <Text style={styles.toggleText}>
+          <Text className="mt-2 text-center text-[13px] text-indigo-700">
             {mode === 'login' ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
           </Text>
         </TouchableOpacity>
@@ -94,29 +90,3 @@ export function LoginScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f5f6f8' },
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  subTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 24, color:'#6a7282'},
-  input: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  hint: { color: '#9ca3af', fontSize: 12, marginTop: -4 },
-  error: { color: '#dc2626', fontSize: 13 },
-  submitButton: {
-    backgroundColor: '#4338ca',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  submitButtonText: { color: 'white', fontWeight: '600', fontSize: 16 },
-  toggleText: { color: '#4338ca', textAlign: 'center', marginTop: 8, fontSize: 13 },
-});

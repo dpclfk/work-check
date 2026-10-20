@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buildTimezoneOptions, detectLocalTimezone } from '../utils/timezones';
 import { useProfileQuery, useUpdateProfileMutation } from '../queries/profile';
 
@@ -56,8 +56,8 @@ export function SettingsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.safeArea}>
-        <Text style={styles.loadingText}>불러오는 중...</Text>
+      <View className="flex-1 bg-[#f5f6f8]">
+        <Text className="p-4 text-[#6b7280]">불러오는 중...</Text>
       </View>
     );
   }
@@ -65,15 +65,15 @@ export function SettingsScreen() {
   const saving = updateMutation.isPending;
 
   return (
-    <View style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>설정</Text>
+    <View className="flex-1 bg-[#f5f6f8]">
+      <ScrollView contentContainerClassName="p-4 pb-10">
+        <Text className="mb-2 text-xl font-bold">설정</Text>
 
-        {profile && <Text style={styles.email}>{profile.email}</Text>}
+        {profile && <Text className="mb-3 text-[13px] text-[#6b7280]">{profile.email}</Text>}
 
-        <Text style={styles.label}>디스코드 웹훅 URL</Text>
+        <Text className="mb-1.5 mt-4 text-[13px] font-semibold text-[#374151]">디스코드 웹훅 URL</Text>
         <TextInput
-          style={styles.input}
+          className="rounded-lg border border-[#e5e7eb] bg-white p-3 text-sm"
           placeholder="https://discord.com/api/webhooks/..."
           autoCapitalize="none"
           autoCorrect={false}
@@ -82,45 +82,51 @@ export function SettingsScreen() {
         />
         {profile?.discordRoom && (
           <TouchableOpacity onPress={handleRemoveWebhook} disabled={saving}>
-            <Text style={styles.removeText}>웹훅 제거</Text>
+            <Text className="mt-1.5 text-[13px] text-red-600">웹훅 제거</Text>
           </TouchableOpacity>
         )}
-        <Text style={styles.hint}>
+        <Text className="mt-1 text-xs text-[#9ca3af]">
           디스코드 채널 설정 → 연동 → 웹후크 만들기에서 URL을 복사해 붙여넣으세요.
         </Text>
 
         <TouchableOpacity
-          style={styles.checkboxRow}
+          className="mt-3 flex-row items-center gap-2"
           onPress={() => setDiscordAlarm(!discordAlarm)}
         >
-          <View style={[styles.checkbox, discordAlarm && styles.checkboxChecked]} />
-          <Text style={styles.checkboxLabel}>디스코드 알림 받기</Text>
+          <View
+            className={`h-[18px] w-[18px] rounded border ${
+              discordAlarm ? 'border-indigo-700 bg-indigo-700' : 'border-[#d1d5db] bg-white'
+            }`}
+          />
+          <Text className="text-[13px] font-semibold text-[#374151]">디스코드 알림 받기</Text>
         </TouchableOpacity>
-        <Text style={styles.hint}>웹훅을 등록해뒀어도 이게 꺼져있으면 알림이 안 갑니다.</Text>
+        <Text className="mt-1 text-xs text-[#9ca3af]">
+          웹훅을 등록해뒀어도 이게 꺼져있으면 알림이 안 갑니다.
+        </Text>
 
-        <Text style={styles.label}>타임존</Text>
+        <Text className="mb-1.5 mt-4 text-[13px] font-semibold text-[#374151]">타임존</Text>
         <TouchableOpacity
-          style={styles.picker}
+          className="rounded-lg border border-[#e5e7eb] bg-white p-3"
           onPress={() => setShowTimezoneList(!showTimezoneList)}
         >
           <Text>{timezone}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setTimezone(detectLocalTimezone())}>
-          <Text style={styles.detectText}>내 기기 시간대로 설정</Text>
+          <Text className="mt-1.5 text-[13px] text-indigo-700">내 기기 시간대로 설정</Text>
         </TouchableOpacity>
 
         {showTimezoneList && (
-          <View style={styles.timezoneList}>
+          <View className="mt-2 rounded-lg border border-[#e5e7eb] bg-white">
             {buildTimezoneOptions(profile?.timezone).map((tz) => (
               <TouchableOpacity
                 key={tz.value}
-                style={styles.timezoneItem}
+                className="border-b border-[#f3f4f6] px-3 py-2.5"
                 onPress={() => {
                   setTimezone(tz.value);
                   setShowTimezoneList(false);
                 }}
               >
-                <Text style={tz.value === timezone ? styles.timezoneItemActive : undefined}>
+                <Text className={tz.value === timezone ? 'font-bold text-indigo-700' : undefined}>
                   {tz.label}
                 </Text>
               </TouchableOpacity>
@@ -128,89 +134,23 @@ export function SettingsScreen() {
           </View>
         )}
 
-        <Text style={styles.hint}>할 일 마감/알림 시각을 이 타임존 기준으로 계산합니다.</Text>
+        <Text className="mt-1 text-xs text-[#9ca3af]">할 일 마감/알림 시각을 이 타임존 기준으로 계산합니다.</Text>
 
         {updateMutation.isError && (
-          <Text style={styles.error}>
+          <Text className="mt-3 text-[13px] text-red-600">
             {extractErrorMessage(updateMutation.error, '저장에 실패했습니다.')}
           </Text>
         )}
-        {savedMessage && <Text style={styles.saved}>{savedMessage}</Text>}
+        {savedMessage && <Text className="mt-3 text-[13px] text-emerald-600">{savedMessage}</Text>}
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-          <Text style={styles.saveButtonText}>{saving ? '저장 중...' : '저장'}</Text>
+        <TouchableOpacity
+          className="mt-5 items-center rounded-lg bg-indigo-700 p-3.5"
+          onPress={handleSave}
+          disabled={saving}
+        >
+          <Text className="text-base font-semibold text-white">{saving ? '저장 중...' : '저장'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f5f6f8' },
-  container: { padding: 16, paddingBottom: 40 },
-  loadingText: { padding: 16, color: '#6b7280' },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
-  email: { color: '#6b7280', fontSize: 13, marginBottom: 12 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 16, marginBottom: 6 },
-  input: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  hint: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
-  removeText: { color: '#dc2626', fontSize: 13, marginTop: 6 },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: 'white',
-  },
-  checkboxChecked: {
-    backgroundColor: '#4338ca',
-    borderColor: '#4338ca',
-  },
-  checkboxLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  picker: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  detectText: { color: '#4338ca', fontSize: 13, marginTop: 6 },
-  timezoneList: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 8,
-  },
-  timezoneItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  timezoneItemActive: { color: '#4338ca', fontWeight: '700' },
-  error: { color: '#dc2626', fontSize: 13, marginTop: 12 },
-  saved: { color: '#059669', fontSize: 13, marginTop: 12 },
-  saveButton: {
-    backgroundColor: '#4338ca',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: { color: 'white', fontWeight: '600', fontSize: 16 },
-});
