@@ -25,6 +25,32 @@ const CYCLE_LABEL: Record<TaskCycle, string> = {
   ONCE: '한 번만',
 };
 
+// getWallClock()의 WEEKDAY_INDEX(일=0~토=6)와 동일한 순서
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
+
+/** cycleType을 바꿀 때 cycleValue 기본값 — WEEKLY/MONTHLY는 "오늘"로 미리 채워서
+ * 사용자가 아예 안 건드려도 항상 유효한 값이 전송되게 함(서버가 cycleValue
+ * 없으면 400으로 막음 — CLAUDE.md의 cycleValue 버그 참고) */
+function defaultCycleValue(cycleType: TaskCycle): number | undefined {
+  const now = new Date();
+  if (cycleType === 'WEEKLY') return now.getDay(); // 0(일)~6(토)
+  if (cycleType === 'MONTHLY') return now.getDate(); // 1~31
+  return undefined;
+}
+
+/** 목록에 "매주 월요일" / "매월 15일"처럼 요일·날짜까지 같이 보여줌.
+ * cycleValue가 없는(예전에 만들어진) 레거시 할 일은 날짜 없이 기본 라벨만 */
+function cycleLabel(task: Task): string {
+  if (task.cycleType === 'WEEKLY' && task.cycleValue != null) {
+    return `매주 ${WEEKDAY_LABELS[task.cycleValue]}요일`;
+  }
+  if (task.cycleType === 'MONTHLY' && task.cycleValue != null) {
+    return `매월 ${task.cycleValue}일`;
+  }
+  return CYCLE_LABEL[task.cycleType];
+}
+
 const DEFAULT_FORM: CreateTaskInput = {
   name: '',
   cycleType: 'DAILY',
@@ -89,7 +115,9 @@ export function TaskListPage() {
       subCategoryId: task.subCategoryId ?? null,
       name: task.name,
       cycleType: task.cycleType,
-      cycleValue: task.cycleValue,
+      // cycleValue 없이 저장된 레거시 WEEKLY/MONTHLY 할 일이면(예전 버그)
+      // 오늘 날짜로 기본값 채움 — 수정 폼 열자마자 유효한 값이 보이게
+      cycleValue: task.cycleValue ?? defaultCycleValue(task.cycleType),
       dueDate: task.dueDate,
       deadLine: task.deadLine,
       remindTime: task.remindTime,
@@ -127,7 +155,7 @@ export function TaskListPage() {
       <h1 className="mb-4 text-2xl font-bold">할 일 체크리스트</h1>
 
       <form onSubmit={handleSubmit} className="mb-6 flex flex-wrap gap-2">
-        <div className="flex min-w-0 flex-1 gap-2 max-[961px]:w-full">
+        <div className="flex min-w-0 flex-1 gap-2 max-[1101px]:w-full">
           <select
             className={categorySelectClass}
             value={form.subCategoryId ?? ''}
@@ -157,10 +185,13 @@ export function TaskListPage() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 max-[961px]:w-full">
+        <div className="flex flex-wrap items-center gap-2 max-[1101px]:w-full">
           <select
             value={form.cycleType}
-            onChange={(e) => setForm({ ...form, cycleType: e.target.value as TaskCycle })}
+            onChange={(e) => {
+              const cycleType = e.target.value as TaskCycle;
+              setForm({ ...form, cycleType, cycleValue: defaultCycleValue(cycleType) });
+            }}
             className={fieldClass}
           >
             <option value="DAILY">매일</option>
@@ -168,6 +199,32 @@ export function TaskListPage() {
             <option value="MONTHLY">매월</option>
             <option value="ONCE">한 번만</option>
           </select>
+          {form.cycleType === 'WEEKLY' && (
+            <select
+              value={form.cycleValue ?? 0}
+              onChange={(e) => setForm({ ...form, cycleValue: Number(e.target.value) })}
+              className={fieldClass}
+            >
+              {WEEKDAY_LABELS.map((label, value) => (
+                <option key={value} value={value}>
+                  {label}요일
+                </option>
+              ))}
+            </select>
+          )}
+          {form.cycleType === 'MONTHLY' && (
+            <select
+              value={form.cycleValue ?? 1}
+              onChange={(e) => setForm({ ...form, cycleValue: Number(e.target.value) })}
+              className={fieldClass}
+            >
+              {MONTH_DAYS.map((day) => (
+                <option key={day} value={day}>
+                  {day}일
+                </option>
+              ))}
+            </select>
+          )}
           {form.cycleType === 'ONCE' && (
             <input
               type="date"
@@ -218,7 +275,7 @@ export function TaskListPage() {
                 className="rounded-lg bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
               >
                 <div className="flex flex-wrap gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 max-[961px]:w-full">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 max-[1101px]:w-full">
                     <select
                       className={categorySelectClass}
                       value={editForm.subCategoryId ?? ''}
@@ -248,10 +305,13 @@ export function TaskListPage() {
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 max-[961px]:w-full">
+                  <div className="flex flex-wrap items-center gap-2 max-[1101px]:w-full">
                     <select
                       value={editForm.cycleType}
-                      onChange={(e) => setEditForm({ ...editForm, cycleType: e.target.value as TaskCycle })}
+                      onChange={(e) => {
+                        const cycleType = e.target.value as TaskCycle;
+                        setEditForm({ ...editForm, cycleType, cycleValue: defaultCycleValue(cycleType) });
+                      }}
                       className={fieldClass}
                     >
                       <option value="DAILY">매일</option>
@@ -259,6 +319,32 @@ export function TaskListPage() {
                       <option value="MONTHLY">매월</option>
                       <option value="ONCE">한 번만</option>
                     </select>
+                    {editForm.cycleType === 'WEEKLY' && (
+                      <select
+                        value={editForm.cycleValue ?? 0}
+                        onChange={(e) => setEditForm({ ...editForm, cycleValue: Number(e.target.value) })}
+                        className={fieldClass}
+                      >
+                        {WEEKDAY_LABELS.map((label, value) => (
+                          <option key={value} value={value}>
+                            {label}요일
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {editForm.cycleType === 'MONTHLY' && (
+                      <select
+                        value={editForm.cycleValue ?? 1}
+                        onChange={(e) => setEditForm({ ...editForm, cycleValue: Number(e.target.value) })}
+                        className={fieldClass}
+                      >
+                        {MONTH_DAYS.map((day) => (
+                          <option key={day} value={day}>
+                            {day}일
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     {editForm.cycleType === 'ONCE' && (
                       <input
                         type="date"
@@ -324,7 +410,7 @@ export function TaskListPage() {
                     </span>
                   )}
                   <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
-                    {CYCLE_LABEL[task.cycleType]}
+                    {cycleLabel(task)}
                   </span>
                   <span className="ml-2 text-xs text-gray-500">{task.deadLine}시까지</span>
                   {task.isCompleted && (

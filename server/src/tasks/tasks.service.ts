@@ -43,6 +43,8 @@ export class TasksService {
       await this.assertSubCategoryOwned(userId, dto.subCategoryId);
     }
 
+    this.assertCycleValueValid(dto.cycleType, dto.cycleValue);
+
     const timezone = await this.getUserTimezone(userId);
     // 요청받은 일정 필드(유저 타임존 기준)를 한국시간으로 환산해서 저장
     const kst = convertScheduleFields(this.toScheduleFields(dto), timezone, KST_TIMEZONE);
@@ -107,10 +109,6 @@ export class TasksService {
       deadLine: dto.deadLine ?? currentDisplay.deadLine,
       remindTime: dto.remindTime ?? currentDisplay.remindTime,
     };
-    const kst = convertScheduleFields(mergedDisplay, timezone, KST_TIMEZONE);
-    this.assertDeadLineNotEqualRemindTime(kst.deadLine, kst.remindTime);
-
-    Object.assign(task, dto, kst);
 
     // 주기/마감을 바꾸는 필드가 하나라도 왔으면, 예전 주기 기준 완료기록은
     // 이제 의미가 없어져서 같이 지움 (remindTime만 바뀐 건 주기 경계에
@@ -120,6 +118,19 @@ export class TasksService {
       dto.cycleValue !== undefined ||
       dto.dueDate !== undefined ||
       dto.deadLine !== undefined;
+
+    // cycleValue 검증은 "스케줄을 실제로 건드릴 때만" — 안 그러면 예전에
+    // cycleValue 없이 만들어진 레거시 WEEKLY/MONTHLY 할 일의 이름만 바꾸려
+    // 해도(스케줄은 그대로인데) 400이 나버림
+    if (scheduleChanged) {
+      this.assertCycleValueValid(mergedDisplay.cycleType, mergedDisplay.cycleValue);
+    }
+
+    const kst = convertScheduleFields(mergedDisplay, timezone, KST_TIMEZONE);
+    this.assertDeadLineNotEqualRemindTime(kst.deadLine, kst.remindTime);
+
+    Object.assign(task, dto, kst);
+
     if (scheduleChanged) {
       await this.completionRepository.delete({ task: { id: task.id } });
     }
@@ -210,6 +221,29 @@ export class TasksService {
   private assertDeadLineNotEqualRemindTime(deadLine: number, remindTime: number) {
     if (deadLine === remindTime) {
       throw new BadRequestException('deadLine과 remindTime은 같은 시각일 수 없습니다.');
+    }
+  }
+
+  /**
+   * WEEKLY/MONTHLY는 cycleValue(요일/일자)가 필수
+   * DAILY/ONCE는 cycleValue를 아예 안 쓰므로 검사 안 함
+   */
+  private assertCycleValueValid(cycleType: TaskCycle, cycleValue?: number) {
+    if (cycleType === TaskCycle.WEEKLY) {
+      if (cycleValue === undefined || cycleValue === null) {
+        throw new BadRequestException('WEEKLY 주기는 요일(cycleValue, 0~6)을 지정해야 합니다.');
+      }
+      if (cycleValue < 0 || cycleValue > 6) {
+        throw new BadRequestException('WEEKLY의 cycleValue는 0(일)~6(토) 사이여야 합니다.');
+      }
+    }
+    if (cycleType === TaskCycle.MONTHLY) {
+      if (cycleValue === undefined || cycleValue === null) {
+        throw new BadRequestException('MONTHLY 주기는 날짜(cycleValue, 1~31)를 지정해야 합니다.');
+      }
+      if (cycleValue < 1 || cycleValue > 31) {
+        throw new BadRequestException('MONTHLY의 cycleValue는 1~31 사이여야 합니다.');
+      }
     }
   }
 
