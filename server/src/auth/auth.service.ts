@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { UserSetting } from '../entities/user-setting.entity';
 import { ClientType, Refresh } from '../entities/refresh.entity';
@@ -68,12 +68,31 @@ export class AuthService {
       relations: ['user'],
     });
 
-    if (!existing || existing.revokeAt || existing.expiresAt < new Date()) {
+    if (!existing) {
+      throw new UnauthorizedException('유효하지 않거나 만료된 리프레시 토큰입니다.');
+    }
+
+    // 이미 로테이션(또는 로그아웃)으로 무효화된 토큰이 재사용됨 — 탈취 의심 신호.
+    // 공격자가 먼저 리프레시해서 이 토큰이 무효화됐고, 그 뒤에 진짜 주인이
+    // (또는 반대로) 이 "오래된" 토큰으로 다시 요청한 상황이라, 서버는 둘 중
+    // 누가 진짜 주인인지 구분할 수 없음. 그래서 안전하게 이 유저의 모든
+    // 세션(아직 안 무효화된 리프레시 토큰 전부)을 강제 무효화해서, 공격자든
+    // 진짜 사용자든 전부 다시 로그인(비밀번호 입력)하게 만듦
+    if (existing.revokeAt) {
+      await this.refreshRepository.update(
+        { userId: existing.userId, revokeAt: IsNull() },
+        { revokeAt: new Date() },
+      );
+      throw new UnauthorizedException(
+        '이미 사용된 리프레시 토큰이 재사용되어 모든 세션을 무효화했습니다. 다시 로그인해주세요.',
+      );
+    }
+
+    if (existing.expiresAt < new Date()) {
       throw new UnauthorizedException('유효하지 않거나 만료된 리프레시 토큰입니다.');
     }
 
     // 로테이션: 이 토큰은 여기서 무효화하고, 새 토큰을 발급한다.
-    // 나중에 이 revoke된 토큰으로 다시 요청이 들어오면 탈취 의심 신호로 쓸 수 있음.
     existing.revokeAt = new Date();
     await this.refreshRepository.save(existing);
 
