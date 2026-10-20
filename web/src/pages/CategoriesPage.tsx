@@ -56,6 +56,17 @@ export function CategoriesPage() {
   const [editingSubId, setEditingSubId] = useState<number | null>(null);
   const [editingSubName, setEditingSubName] = useState('');
   const [editingSubMainId, setEditingSubMainId] = useState<string>('');
+  // 접힌 메인카테고리 그룹의 key 모음(할 일 목록의 접기와 동일한 패턴) — 기본은 전부 펼침
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // 지금 활성화된 mutation 중 가장 최근 에러 하나만 보여줌(지금까지의 단일 에러 메시지 UX 유지)
   const error = [
@@ -130,8 +141,64 @@ export function CategoriesPage() {
     removeSubMutation.mutate({ id: category.id, deleteSubItems });
   };
 
-  const mainCategoryName = (id?: number | null) =>
-    mainCategories.find((m) => m.id === id)?.name ?? null;
+  // 서브카테고리를 메인카테고리별로 묶음(할 일 목록과 동일한 패턴) — 서브가
+  // 하나도 없는 메인카테고리는 접기 UI에 아예 안 보이게 걸러냄
+  const subGroups = [
+    ...mainCategories.map((main) => ({
+      key: `main-${main.id}`,
+      label: main.name,
+      subs: subCategories.filter((sub) => sub.mainCategoryId === main.id),
+    })),
+    { key: 'main-none', label: '미분류', subs: subCategories.filter((sub) => sub.mainCategoryId == null) },
+  ].filter((group) => group.subs.length > 0);
+
+  const renderSubCategory = (category: SubCategory) => (
+    <li
+      key={category.id}
+      className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+    >
+      {editingSubId === category.id ? (
+        <div className="flex flex-1 flex-wrap gap-2">
+          <select
+            value={editingSubMainId}
+            onChange={(e) => setEditingSubMainId(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">메인 카테고리 없음</option>
+            {mainCategories.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <input
+            value={editingSubName}
+            onChange={(e) => setEditingSubName(e.target.value)}
+            autoFocus
+            className={`flex-1 ${fieldClass}`}
+          />
+          <button type="button" onClick={() => saveEditSub(category.id)} className={buttonClass}>
+            저장
+          </button>
+          <button type="button" onClick={() => setEditingSubId(null)} className={buttonClass}>
+            취소
+          </button>
+        </div>
+      ) : (
+        <>
+          <span>{category.name}</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => startEditSub(category)} className={primaryButtonClass}>
+              수정
+            </button>
+            <button type="button" onClick={() => handleRemoveSub(category)} className={deleteButtonClass}>
+              삭제
+            </button>
+          </div>
+        </>
+      )}
+    </li>
+  );
 
   return (
     <PageContainer>
@@ -223,63 +290,28 @@ export function CategoriesPage() {
               </button>
             </form>
 
-            <ul className="flex list-none flex-col gap-2 p-0">
-              {subCategories.map((category) => (
-                <li
-                  key={category.id}
-                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                >
-                  {editingSubId === category.id ? (
-                    <div className="flex flex-1 flex-wrap gap-2">
-                      <select
-                        value={editingSubMainId}
-                        onChange={(e) => setEditingSubMainId(e.target.value)}
-                        className={fieldClass}
-                      >
-                        <option value="">메인 카테고리 없음</option>
-                        {mainCategories.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={editingSubName}
-                        onChange={(e) => setEditingSubName(e.target.value)}
-                        autoFocus
-                        className={`flex-1 ${fieldClass}`}
-                      />
-                      <button type="button" onClick={() => saveEditSub(category.id)} className={buttonClass}>
-                        저장
-                      </button>
-                      <button type="button" onClick={() => setEditingSubId(null)} className={buttonClass}>
-                        취소
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span>
-                        {category.name}
-                        {mainCategoryName(category.mainCategoryId) && (
-                          <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
-                            {mainCategoryName(category.mainCategoryId)}
-                          </span>
-                        )}
-                      </span>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => startEditSub(category)} className={primaryButtonClass}>
-                          수정
-                        </button>
-                        <button type="button" onClick={() => handleRemoveSub(category)} className={deleteButtonClass}>
-                          삭제
-                        </button>
-                      </div>
-                    </>
+            <div className="flex flex-col gap-4">
+              {subGroups.map((group) => (
+                <div key={group.key}>
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.key)}
+                    className="mb-2 flex items-center gap-1.5 text-sm font-bold text-gray-800 hover:cursor-pointer"
+                  >
+                    <span className="text-xs text-gray-400">
+                      {collapsedGroups.has(group.key) ? '▶' : '▼'}
+                    </span>
+                    {group.label}
+                  </button>
+                  {!collapsedGroups.has(group.key) && (
+                    <ul className="flex list-none flex-col gap-2 border-l-2 border-gray-200 p-0 pl-4">
+                      {group.subs.map(renderSubCategory)}
+                    </ul>
                   )}
-                </li>
+                </div>
               ))}
               {subCategories.length === 0 && <p>등록된 서브 카테고리가 없습니다.</p>}
-            </ul>
+            </div>
           </section>
         </>
       )}

@@ -63,16 +63,60 @@ function defaultCycleValue(cycleType: TaskCycle): number | undefined {
   return undefined;
 }
 
-/** 목록에 "매주 월요일" / "매월 15일"처럼 요일·날짜까지 같이 보여줌.
- * cycleValue가 없는(레거시) 할 일은 기본 라벨만 */
-function cycleLabel(task: Task): string {
+/** "화요일" / "20일" / "11월 20일"처럼 주기의 날짜 부분만. DAILY는 날짜가 없음(null) */
+function dayLabel(task: Task): string | null {
   if (task.cycleType === 'WEEKLY' && task.cycleValue != null) {
-    return `매주 ${WEEKDAY_LABELS[task.cycleValue]}요일`;
+    return `${WEEKDAY_LABELS[task.cycleValue]}요일`;
   }
   if (task.cycleType === 'MONTHLY' && task.cycleValue != null) {
-    return `매월 ${task.cycleValue}일`;
+    return `${task.cycleValue}일`;
   }
-  return CYCLE_LABEL[task.cycleType];
+  if (task.cycleType === 'ONCE' && task.dueDate) {
+    const [, month, day] = task.dueDate.split('-').map(Number);
+    return `${month}월 ${day}일`;
+  }
+  return null;
+}
+
+/** "매주 화요일" / "매월 20일" / "매일"처럼 주기 전체 */
+function cycleLabel(task: Task): string {
+  const day = dayLabel(task);
+  return day ? `${CYCLE_LABEL[task.cycleType]} ${day}` : CYCLE_LABEL[task.cycleType];
+}
+
+/** "매월 20일 22시까지"처럼 주기+날짜+마감 시각을 한 줄로 */
+function deadlineLabel(task: Task): string {
+  return `${cycleLabel(task)} ${task.deadLine}시까지`;
+}
+
+/** 알림 날짜 라벨 — remindTime이 deadLine보다 늦은 시각이면(예: 마감 22시,
+ * 알림 23시) 그 알림은 "마감 당일"이 아니라 "마감 전날"에 울려야 의미가
+ * 있어서(ReminderService도 "다음 마감까지 24시간 이내"로 판단해서 실제로
+ * 전날 발송됨) 하루 앞당겨서 보여줌. DAILY는 날짜 개념이 없어서 그대로 null */
+function remindDayLabel(task: Task): string | null {
+  const needsPreviousDay = task.remindTime > task.deadLine;
+
+  if (task.cycleType === 'WEEKLY' && task.cycleValue != null) {
+    const weekday = needsPreviousDay ? (task.cycleValue + 6) % 7 : task.cycleValue;
+    return `${WEEKDAY_LABELS[weekday]}요일`;
+  }
+  if (task.cycleType === 'MONTHLY' && task.cycleValue != null) {
+    if (!needsPreviousDay) return `${task.cycleValue}일`;
+    return task.cycleValue === 1 ? '말일' : `${task.cycleValue - 1}일`;
+  }
+  if (task.cycleType === 'ONCE' && task.dueDate) {
+    const [y, m, d] = task.dueDate.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    if (needsPreviousDay) date.setUTCDate(date.getUTCDate() - 1);
+    return `${date.getUTCMonth() + 1}월 ${date.getUTCDate()}일`;
+  }
+  return null;
+}
+
+/** "19일 23시 알림"처럼 날짜+알림 시각만(주기 종류는 deadlineLabel에 이미 나와서 안 반복) */
+function remindLabel(task: Task): string {
+  const day = remindDayLabel(task);
+  return day ? `${day} ${task.remindTime}시 알림` : `${task.remindTime}시 알림`;
 }
 
 const DEFAULT_FORM: CreateTaskInput = {
@@ -81,6 +125,14 @@ const DEFAULT_FORM: CreateTaskInput = {
   deadLine: 22,
   remindTime: 21,
 };
+
+// 메인/서브카테고리로 묶은 목록을 FlatList의 단일 평면 배열로 펼친 행 하나하나.
+// FlatList는 중첩 구조를 직접 못 그리므로, "접기 상태까지 반영한" 평면 배열을
+// 매 렌더마다 새로 만들어서 data로 넘김(접힌 그룹 아래 행은 아예 배열에서 제외)
+type Row =
+  | { type: 'main'; key: string; label: string; collapsed: boolean }
+  | { type: 'sub'; key: string; label: string; collapsed: boolean }
+  | { type: 'task'; key: string; task: Task };
 
 export function TaskListScreen() {
   const { data: tasks = [], isRefetching, refetch } = useTasksQuery();
@@ -98,20 +150,80 @@ export function TaskListScreen() {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<UpdateTaskInput>({});
   const [editValidationError, setEditValidationError] = useState<string | null>(null);
+  // 접힌 그룹의 key 모음(메인/서브 카테고리 둘 다 이 Set 하나로 관리) — 기본은 전부 펼침
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  // 메인카테고리별로 묶고(optgroup 대응), 메인카테고리 없는 건 "미분류"로 — web과 동일
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // 메인카테고리별로 묶고(optgroup 대응), 메인카테고리 없는 건 "미분류"로 — web과 동일 (생성/수정 폼 드롭다운용)
   const subCategoryOptions: DropdownOption<string>[] = [{ label: '카테고리 없음', value: NO_CATEGORY }];
-  const grouped = [
+  const subCategoryDropdownGroups = [
     ...mainCategories.map((main) => ({
       label: main.name,
       subs: subCategories.filter((sub) => sub.mainCategoryId === main.id),
     })),
     { label: '미분류', subs: subCategories.filter((sub) => sub.mainCategoryId == null) },
   ].filter((g) => g.subs.length > 0);
-  for (const group of grouped) {
+  for (const group of subCategoryDropdownGroups) {
     subCategoryOptions.push({ label: group.label, value: '', isHeader: true });
     for (const sub of group.subs) {
       subCategoryOptions.push({ label: sub.name, value: String(sub.id) });
+    }
+  }
+
+  // 할 일 목록을 메인카테고리 > 서브카테고리 > 할 일로 묶어서 FlatList용 평면 행으로 변환
+  const tasksBySubId = new Map<number, Task[]>();
+  const uncategorizedTasks: Task[] = [];
+  for (const task of tasks) {
+    if (task.subCategoryId != null) {
+      const list = tasksBySubId.get(task.subCategoryId) ?? [];
+      list.push(task);
+      tasksBySubId.set(task.subCategoryId, list);
+    } else {
+      uncategorizedTasks.push(task);
+    }
+  }
+  const buildSubGroups = (mainCategoryId: number | null) =>
+    subCategories
+      .filter((sub) => sub.mainCategoryId === mainCategoryId)
+      .map((sub) => ({ key: `sub-${sub.id}`, label: sub.name, tasks: tasksBySubId.get(sub.id) ?? [] }))
+      .filter((g) => g.tasks.length > 0);
+  const mainGroups = mainCategories
+    .map((main) => ({ key: `main-${main.id}`, label: main.name, subGroups: buildSubGroups(main.id) }))
+    .filter((g) => g.subGroups.length > 0);
+  const uncategorizedSubGroups = buildSubGroups(null);
+  if (uncategorizedSubGroups.length > 0) {
+    mainGroups.push({ key: 'main-none', label: '미분류', subGroups: uncategorizedSubGroups });
+  }
+
+  const rows: Row[] = [];
+  for (const mainGroup of mainGroups) {
+    const mainCollapsed = collapsedGroups.has(mainGroup.key);
+    rows.push({ type: 'main', key: mainGroup.key, label: mainGroup.label, collapsed: mainCollapsed });
+    if (!mainCollapsed) {
+      for (const subGroup of mainGroup.subGroups) {
+        const subCollapsed = collapsedGroups.has(subGroup.key);
+        rows.push({ type: 'sub', key: subGroup.key, label: subGroup.label, collapsed: subCollapsed });
+        if (!subCollapsed) {
+          for (const task of subGroup.tasks) {
+            rows.push({ type: 'task', key: `task-${task.id}`, task });
+          }
+        }
+      }
+    }
+  }
+  if (uncategorizedTasks.length > 0) {
+    const collapsed = collapsedGroups.has('uncategorized');
+    rows.push({ type: 'main', key: 'uncategorized', label: '카테고리 없음', collapsed });
+    if (!collapsed) {
+      for (const task of uncategorizedTasks) rows.push({ type: 'task', key: `task-${task.id}`, task });
     }
   }
 
@@ -247,147 +359,158 @@ export function TaskListScreen() {
     </View>
   );
 
+  const renderTaskRow = (task: Task) =>
+    editingTaskId === task.id ? (
+      <View style={[styles.card, styles.indent]}>
+        <Dropdown
+          value={editForm.subCategoryId != null ? String(editForm.subCategoryId) : NO_CATEGORY}
+          options={subCategoryOptions}
+          onChange={(v) =>
+            setEditForm({ ...editForm, subCategoryId: v === NO_CATEGORY ? null : Number(v) })
+          }
+          style={styles.field}
+        />
+        <TextInput
+          style={[styles.input, styles.field]}
+          placeholder="할 일 제목"
+          value={editForm.name ?? ''}
+          onChangeText={(name) => setEditForm({ ...editForm, name })}
+        />
+        <Dropdown
+          value={editForm.cycleType ?? 'DAILY'}
+          options={CYCLE_OPTIONS}
+          onChange={(cycleType) =>
+            setEditForm({ ...editForm, cycleType, cycleValue: defaultCycleValue(cycleType) })
+          }
+          style={styles.field}
+        />
+        {editForm.cycleType === 'WEEKLY' && (
+          <Dropdown
+            value={editForm.cycleValue ?? 0}
+            options={WEEKDAY_OPTIONS}
+            onChange={(cycleValue) => setEditForm({ ...editForm, cycleValue })}
+            style={styles.field}
+          />
+        )}
+        {editForm.cycleType === 'MONTHLY' && (
+          <Dropdown
+            value={editForm.cycleValue ?? 1}
+            options={MONTH_DAY_OPTIONS}
+            onChange={(cycleValue) => setEditForm({ ...editForm, cycleValue })}
+            style={styles.field}
+          />
+        )}
+        {editForm.cycleType === 'ONCE' && (
+          <TextInput
+            style={[styles.input, styles.field]}
+            placeholder="YYYY-MM-DD"
+            value={editForm.dueDate ?? ''}
+            onChangeText={(dueDate) => setEditForm({ ...editForm, dueDate })}
+          />
+        )}
+        <View style={styles.hourRow}>
+          <View style={styles.hourField}>
+            <Text style={styles.hourLabel}>알림(시)</Text>
+            <TextInput
+              style={styles.hourInput}
+              keyboardType="number-pad"
+              value={String(editForm.remindTime ?? 0)}
+              onChangeText={(v) => setEditForm({ ...editForm, remindTime: Number(v) || 0 })}
+            />
+          </View>
+          <View style={styles.hourField}>
+            <Text style={styles.hourLabel}>마감(시)</Text>
+            <TextInput
+              style={styles.hourInput}
+              keyboardType="number-pad"
+              value={String(editForm.deadLine ?? 0)}
+              onChangeText={(v) => setEditForm({ ...editForm, deadLine: Number(v) || 0 })}
+            />
+          </View>
+        </View>
+        {editError && <Text style={styles.error}>{editError}</Text>}
+        <View style={styles.editActions}>
+          <TouchableOpacity
+            style={styles.smallButton}
+            onPress={() => saveEdit(task.id)}
+            disabled={updateMutation.isPending}
+          >
+            <Text style={styles.smallButtonText}>{updateMutation.isPending ? '저장 중...' : '저장'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.smallButton} onPress={cancelEdit}>
+            <Text style={styles.smallButtonText}>취소</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ) : (
+      <View style={[styles.item, styles.indent, !task.isActive && styles.itemInactive]}>
+        <View style={styles.itemText}>
+          <Text style={styles.itemTitle}>{task.name}</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{deadlineLabel(task)}</Text>
+            </View>
+            <Text style={styles.itemMeta}>{remindLabel(task)}</Text>
+            {task.isCompleted && (
+              <View style={styles.doneBadge}>
+                <Text style={styles.doneBadgeText}>완료</Text>
+              </View>
+            )}
+            {!task.isActive && (
+              <View style={styles.offBadge}>
+                <Text style={styles.offBadgeText}>꺼짐</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <View style={styles.itemActions}>
+          <TouchableOpacity style={styles.completeButton} onPress={() => completeMutation.mutate(task.id)}>
+            <Text style={styles.completeButtonText}>완료</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.editButton} onPress={() => startEdit(task)}>
+            <Text style={styles.editButtonText}>수정</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setActiveMutation.mutate({ id: task.id, isActive: !task.isActive })}
+          >
+            <Text style={styles.toggleButtonText}>{task.isActive ? '끄기' : '켜기'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => removeMutation.mutate(task.id)}>
+            <Text style={styles.deleteButtonText}>삭제</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+
   return (
     <FlatList
       style={styles.list}
-      data={tasks}
-      keyExtractor={(task) => String(task.id)}
+      data={rows}
+      keyExtractor={(row) => row.key}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       contentContainerStyle={styles.listContent}
       ListHeaderComponent={createForm}
       ListEmptyComponent={<Text style={styles.empty}>등록된 할 일이 없습니다.</Text>}
-      renderItem={({ item }) =>
-        editingTaskId === item.id ? (
-          <View style={styles.card}>
-            <Dropdown
-              value={editForm.subCategoryId != null ? String(editForm.subCategoryId) : NO_CATEGORY}
-              options={subCategoryOptions}
-              onChange={(v) =>
-                setEditForm({ ...editForm, subCategoryId: v === NO_CATEGORY ? null : Number(v) })
-              }
-              style={styles.field}
-            />
-            <TextInput
-              style={[styles.input, styles.field]}
-              placeholder="할 일 제목"
-              value={editForm.name ?? ''}
-              onChangeText={(name) => setEditForm({ ...editForm, name })}
-            />
-            <Dropdown
-              value={editForm.cycleType ?? 'DAILY'}
-              options={CYCLE_OPTIONS}
-              onChange={(cycleType) =>
-                setEditForm({ ...editForm, cycleType, cycleValue: defaultCycleValue(cycleType) })
-              }
-              style={styles.field}
-            />
-            {editForm.cycleType === 'WEEKLY' && (
-              <Dropdown
-                value={editForm.cycleValue ?? 0}
-                options={WEEKDAY_OPTIONS}
-                onChange={(cycleValue) => setEditForm({ ...editForm, cycleValue })}
-                style={styles.field}
-              />
-            )}
-            {editForm.cycleType === 'MONTHLY' && (
-              <Dropdown
-                value={editForm.cycleValue ?? 1}
-                options={MONTH_DAY_OPTIONS}
-                onChange={(cycleValue) => setEditForm({ ...editForm, cycleValue })}
-                style={styles.field}
-              />
-            )}
-            {editForm.cycleType === 'ONCE' && (
-              <TextInput
-                style={[styles.input, styles.field]}
-                placeholder="YYYY-MM-DD"
-                value={editForm.dueDate ?? ''}
-                onChangeText={(dueDate) => setEditForm({ ...editForm, dueDate })}
-              />
-            )}
-            <View style={styles.hourRow}>
-              <View style={styles.hourField}>
-                <Text style={styles.hourLabel}>알림(시)</Text>
-                <TextInput
-                  style={styles.hourInput}
-                  keyboardType="number-pad"
-                  value={String(editForm.remindTime ?? 0)}
-                  onChangeText={(v) => setEditForm({ ...editForm, remindTime: Number(v) || 0 })}
-                />
-              </View>
-              <View style={styles.hourField}>
-                <Text style={styles.hourLabel}>마감(시)</Text>
-                <TextInput
-                  style={styles.hourInput}
-                  keyboardType="number-pad"
-                  value={String(editForm.deadLine ?? 0)}
-                  onChangeText={(v) => setEditForm({ ...editForm, deadLine: Number(v) || 0 })}
-                />
-              </View>
-            </View>
-            {editError && <Text style={styles.error}>{editError}</Text>}
-            <View style={styles.editActions}>
-              <TouchableOpacity
-                style={styles.smallButton}
-                onPress={() => saveEdit(item.id)}
-                disabled={updateMutation.isPending}
-              >
-                <Text style={styles.smallButtonText}>{updateMutation.isPending ? '저장 중...' : '저장'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.smallButton} onPress={cancelEdit}>
-                <Text style={styles.smallButtonText}>취소</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={[styles.item, !item.isActive && styles.itemInactive]}>
-            <View style={styles.itemText}>
-              <Text style={styles.itemTitle}>{item.name}</Text>
-              <View style={styles.badgeRow}>
-                {item.subCategory && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {item.subCategory.mainCategory ? `${item.subCategory.mainCategory.name} / ` : ''}
-                      {item.subCategory.name}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{cycleLabel(item)}</Text>
-                </View>
-                <Text style={styles.itemMeta}>{item.deadLine}시까지</Text>
-                {item.isCompleted && (
-                  <View style={styles.doneBadge}>
-                    <Text style={styles.doneBadgeText}>완료</Text>
-                  </View>
-                )}
-                {!item.isActive && (
-                  <View style={styles.offBadge}>
-                    <Text style={styles.offBadgeText}>꺼짐</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            <View style={styles.itemActions}>
-              <TouchableOpacity style={styles.completeButton} onPress={() => completeMutation.mutate(item.id)}>
-                <Text style={styles.completeButtonText}>완료</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.editButton} onPress={() => startEdit(item)}>
-                <Text style={styles.editButtonText}>수정</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.toggleButton}
-                onPress={() => setActiveMutation.mutate({ id: item.id, isActive: !item.isActive })}
-              >
-                <Text style={styles.toggleButtonText}>{item.isActive ? '끄기' : '켜기'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => removeMutation.mutate(item.id)}>
-                <Text style={styles.deleteButtonText}>삭제</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )
-      }
+      renderItem={({ item: row }) => {
+        if (row.type === 'main') {
+          return (
+            <TouchableOpacity style={styles.mainHeader} onPress={() => toggleGroup(row.key)}>
+              <Text style={styles.headerChevron}>{row.collapsed ? '▶' : '▼'}</Text>
+              <Text style={styles.mainHeaderText}>{row.label}</Text>
+            </TouchableOpacity>
+          );
+        }
+        if (row.type === 'sub') {
+          return (
+            <TouchableOpacity style={styles.subHeader} onPress={() => toggleGroup(row.key)}>
+              <Text style={styles.headerChevronSmall}>{row.collapsed ? '▶' : '▼'}</Text>
+              <Text style={styles.subHeaderText}>{row.label}</Text>
+            </TouchableOpacity>
+          );
+        }
+        return renderTaskRow(row.task);
+      }}
     />
   );
 }
@@ -438,6 +561,15 @@ const styles = StyleSheet.create({
   },
   submitButtonText: { color: 'white', fontWeight: '600', fontSize: 15 },
   empty: { textAlign: 'center', color: '#6b7280', marginTop: 32 },
+  // 메인/서브카테고리 접기 헤더
+  mainHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 2 },
+  mainHeaderText: { fontSize: 15, fontWeight: '700', color: '#1f2937' },
+  subHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16, marginBottom: 2 },
+  subHeaderText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  headerChevron: { fontSize: 11, color: '#9ca3af' },
+  headerChevronSmall: { fontSize: 10, color: '#9ca3af' },
+  // 서브카테고리 아래 할 일임을 보여주는 들여쓰기(메인 전용 "카테고리 없음" 아래 할 일도 통일감 있게 같이 적용)
+  indent: { marginLeft: 16 },
   item: {
     flexDirection: 'row',
     justifyContent: 'space-between',
