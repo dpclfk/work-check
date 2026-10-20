@@ -1,13 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buildTimezoneOptions, detectLocalTimezone } from '../utils/timezones';
 import { useProfileQuery, useUpdateProfileMutation } from '../queries/profile';
 
@@ -18,11 +10,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-interface SettingsScreenProps {
-  onBack: () => void;
-}
-
-export function SettingsScreen({ onBack }: SettingsScreenProps) {
+export function SettingsScreen() {
   const { data: profile, isLoading: loading } = useProfileQuery();
   const updateMutation = useUpdateProfileMutation();
 
@@ -68,23 +56,18 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <Text style={styles.loadingText}>불러오는 중...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const saving = updateMutation.isPending;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>설정</Text>
-          <TouchableOpacity onPress={onBack}>
-            <Text style={styles.backText}>← 할 일로</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.title}>설정</Text>
 
         {profile && <Text style={styles.email}>{profile.email}</Text>}
 
@@ -158,7 +141,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           <Text style={styles.saveButtonText}>{saving ? '저장 중...' : '저장'}</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -166,14 +149,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f5f6f8' },
   container: { padding: 16, paddingBottom: 40 },
   loadingText: { padding: 16, color: '#6b7280' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  title: { fontSize: 22, fontWeight: '700' },
-  backText: { color: '#4338ca', fontSize: 13, fontWeight: '600' },
+  title: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
   email: { color: '#6b7280', fontSize: 13, marginBottom: 12 },
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 16, marginBottom: 6 },
   input: {

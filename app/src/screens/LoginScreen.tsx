@@ -42,6 +42,8 @@ export function LoginScreen() {
         style={styles.container}
       >
         <Text style={styles.title}>Work Check</Text>
+        <Text style={styles.subTitle}>매일/매주/매달 해야할일을 까먹지않게</Text>
+        
 
         <TextInput
           style={styles.input}
@@ -96,7 +98,8 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f5f6f8' },
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  subTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 24, color:'#6a7282'},
   input: {
     backgroundColor: 'white',
     borderRadius: 8,

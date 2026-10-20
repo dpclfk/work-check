@@ -8,10 +8,10 @@
   "dependencies": {
     "@tanstack/react-query": "^5.104.4",
     "axios": "^1.20.0",
-    "expo": "~57.0.20",
+    "expo": "~57.0.30",
     "expo-constants": "~57.0.17",
-    "expo-device": "~57.0.1",
-    "expo-notifications": "~57.0.17",
+    "expo-device": "~57.0.2",
+    "expo-notifications": "~57.0.23",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",

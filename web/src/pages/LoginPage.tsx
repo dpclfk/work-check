@@ -29,7 +29,9 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto max-w-[360px] px-4 py-20 text-center">
-      <h1 className="mb-6 text-2xl font-bold">Work Check</h1>
+      <h1 className="mb-2 text-2xl font-bold">Work Check</h1>
+      <h2 className="mb-6 text-xl font-bold text-gray-500">매일/매주/매달 해야할일을 까먹지않게</h2>
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         <input
           type="email"
