@@ -1,6 +1,6 @@
 import './global.css';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,13 +10,16 @@ import { TaskListScreen } from './src/screens/TaskListScreen';
 import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { AppView, Gnb } from './src/components/Gnb';
+import { UpdateBanner } from './src/components/UpdateBanner';
 import { registerForPushNotificationsAsync } from './src/notifications/registerForPushNotifications';
+import { checkForAppUpdate, UpdateInfo } from './src/utils/checkForUpdate';
 
 const queryClient = new QueryClient();
 
 function AppContent() {
   const { isAuthenticated, isReady } = useAuth();
   const [view, setView] = useState<AppView>('tasks');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
     // /devices가 인증을 요구하므로, 로그인된 뒤에만 푸시 토큰을 등록한다
@@ -25,11 +28,28 @@ function AppContent() {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    // APK 사이드로드 배포라 웹 미리보기(Play 스토어 없이 수동 설치하는 게 의미
+    // 없는 플랫폼)에선 체크 안 함. 로그인 뒤 한 번만 확인 — 너무 자주 체크할
+    // 이유가 없고, 배너라 거슬리지 않게 조용히 무시 가능함
+    if (!isAuthenticated || Platform.OS === 'web') return;
+    checkForAppUpdate().then((info) => {
+      if (info.available) setUpdateInfo(info);
+    });
+  }, [isAuthenticated]);
+
   if (!isReady) return null; // 저장된 토큰 확인 중 (짧은 순간이라 스피너 없이 빈 화면)
   if (!isAuthenticated) return <LoginScreen />;
 
   return (
     <View className="flex-1 bg-[#f5f6f8]">
+      {updateInfo?.available && updateInfo.latestVersion && updateInfo.releaseUrl && (
+        <UpdateBanner
+          latestVersion={updateInfo.latestVersion}
+          releaseUrl={updateInfo.releaseUrl}
+          onDismiss={() => setUpdateInfo(null)}
+        />
+      )}
       <Gnb activeView={view} onNavigate={setView} />
       {view === 'categories' ? (
         <CategoriesScreen />

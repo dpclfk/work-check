@@ -10,8 +10,9 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.akdfid.workcheck",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -30,11 +31,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "05ed98d1-56eb-4174-a3fb-27e7dcb4512a"
       }
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "owner": "seungbae"
   }
 }

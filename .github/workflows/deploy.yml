@@ -1,14 +1,49 @@
 name: Deploy to OCI
 
-# main에 push될 때 자동 배포 + Actions 탭에서 수동 실행(workflow_dispatch)도 가능
+# main에 push될 때 자동 배포 + Actions 탭에서 수동 실행(workflow_dispatch)도 가능.
+# paths로 server/web/app/docker-compose.yml 중 하나라도 바뀐 push에서만
+# 워크플로 자체가 트리거됨(그 외 — CLAUDE.md 같은 문서만 바뀐 push 등 — 는
+# 아예 안 돎). 그 안에서 또 한 번 세분화됨(아래 changes job) — server/web/
+# docker-compose.yml이 바뀌면 배포 관련 job들만, app/이 바뀌면 build_apk만
+# 실행되게 서로 독립적으로 나뉨
 on:
   push:
     branches: [main]
+    paths:
+      - 'server/**'
+      - 'web/**'
+      - 'app/**'
+      - 'docker-compose.yml'
   workflow_dispatch:
 
 jobs:
-  # 배포 전 안전장치 — 서버/웹이 빌드/타입체크를 통과해야만 다음 deploy job이 실행됨
-  check:
+  # 이번 push에서 "배포"(서버/웹/docker-compose.yml) 쪽과 "앱" 쪽 중 뭐가
+  # 바뀌었는지 분류. 서로 완전히 독립된 두 파이프라인이라(아래 check_deploy/
+  # check_app이 각자의 플래그로만 게이트돼서), 한쪽만 바뀌어도 다른 쪽
+  # job들이 전부 skip 처리되지 않음(skip은 needs 체인을 타고 전파되므로,
+  # 두 파이프라인을 애초에 분리해야 함)
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      deploy: ${{ steps.filter.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'app/**'
+            deploy:
+              - 'server/**'
+              - 'web/**'
+              - 'docker-compose.yml'
+
+  # 서버/웹 배포 전 안전장치 — deploy 관련 파일이 바뀌었을 때만 실행
+  check_deploy:
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +64,26 @@ jobs:
           npm ci
           npm run build
 
+  # 앱 빌드 전 안전장치 — app/이 바뀌었을 때만 실행
+  check_app:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: App 타입체크
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc --noEmit
+
   build_and_push:
-    needs: check
+    needs: check_deploy
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -82,7 +135,7 @@ jobs:
           script: echo deploy
 
   deploy_web:
-    needs: check
+    needs: check_deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,3 +163,57 @@ jobs:
           remote_user: ${{ secrets.OCI_USER }}
           remote_key: ${{ secrets.OCI_WEB_SSH_KEY }}
           remote_port: ${{ secrets.OCI_SSH_PORT || 22 }}
+
+  # app/가 바뀐 push에서만 APK를 새로 빌드해서 GitHub Release로 올림.
+  # 앱의 UpdateBanner(src/utils/checkForUpdate.ts)가 "app-v*" 태그의 릴리즈
+  # 목록을 보고 지금 설치된 버전보다 높은 게 있으면 사용자에게 알려줌 —
+  # 그래서 app.json의 expo.version을 올려야 사용자에게 "새 버전" 알림이 뜸
+  # (매 배포마다 자동으로 올리는 게 아니라 의도적으로 올렸을 때만 알리고 싶어서
+  # 수동 관리로 둠 — eas.json의 appVersionSource: local 참고)
+  build_apk:
+    needs: check_app
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 의존성 설치
+        working-directory: app
+        run: npm ci
+
+      - name: EAS CLI 설정
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # EAS 클라우드가 빌드(러너에 Android SDK 설치 불필요) — eas.json의 apk
+      # 프로필(buildType: apk)로 Play스토어용 AAB 대신 사이드로드용 APK를 만듦
+      - name: APK 빌드
+        working-directory: app
+        run: eas build --platform android --profile apk --non-interactive --wait --json > build-result.json
+
+      - name: APK 다운로드
+        working-directory: app
+        run: |
+          APK_URL=$(jq -r '.[0].artifacts.buildUrl' build-result.json)
+          curl -L -o work-check.apk "$APK_URL"
+
+      - name: app.json 버전 읽기
+        id: version
+        working-directory: app
+        run: echo "version=$(node -p "require('./app.json').expo.version")" >> "$GITHUB_OUTPUT"
+
+      # 같은 버전으로 다시 빌드하면 태그가 같아서 기존 릴리즈의 APK가
+      # 최신 빌드로 교체됨(softprops/action-gh-release 기본 동작)
+      - name: GitHub Release 생성 + APK 첨부
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v${{ steps.version.outputs.version }}
+          name: Work Check App v${{ steps.version.outputs.version }}
+          files: app/work-check.apk
