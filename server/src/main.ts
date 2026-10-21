@@ -37,7 +37,7 @@ async function bootstrap() {
   // AllExceptionsFilter로 넘어감
   app.useGlobalFilters(new AllExceptionsFilter(), new HttpExceptionFilter());
 
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 3030;
   await app.listen(port);
   console.log(`Server running on http://localhost:${port}`);
   if (process.env.SWAGGER_ENABLED !== 'false') {

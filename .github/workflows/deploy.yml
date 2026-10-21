@@ -1,0 +1,108 @@
+name: Deploy to OCI
+
+# main에 push될 때 자동 배포 + Actions 탭에서 수동 실행(workflow_dispatch)도 가능
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # 배포 전 안전장치 — 서버/웹이 빌드/타입체크를 통과해야만 다음 deploy job이 실행됨
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Server 타입체크
+        working-directory: server
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+      - name: Web 빌드
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+  build_and_push:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GHCR 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 이미지 빌드 + 푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          push: true
+          tags: |
+            ghcr.io/dpclfk/work-check-server:latest
+            ghcr.io/dpclfk/work-check-server:${{ github.sha }}
+
+      - name: docker-compose.yml을 OCI에 rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avz
+          path: docker-compose.yml
+          remote_path: /var/www/work-check/
+          remote_host: ${{ secrets.OCI_HOST }}
+          remote_user: ${{ secrets.OCI_USER }}
+          remote_key: ${{ secrets.OCI_COMPOSE_SSH_KEY }}
+          remote_port: ${{ secrets.OCI_SSH_PORT || 22 }}
+
+  deploy:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH로 OCI에 접속해 배포 트리거 (실제 명령은 OCI 쪽 authorized_keys가 강제함)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          port: ${{ secrets.OCI_SSH_PORT || 22 }}
+          script: echo deploy
+
+  deploy_web:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Web 빌드 (배포용)
+        working-directory: web
+        env:
+          VITE_API_BASE_URL: ${{ secrets.WEB_API_BASE_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: rsync로 OCI nginx 서빙 경로에 업로드
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          path: web/dist/
+          remote_path: /var/www/work-check-web/
+          remote_host: ${{ secrets.OCI_HOST }}
+          remote_user: ${{ secrets.OCI_USER }}
+          remote_key: ${{ secrets.OCI_WEB_SSH_KEY }}
+          remote_port: ${{ secrets.OCI_SSH_PORT || 22 }}

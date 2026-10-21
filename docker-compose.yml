@@ -25,6 +25,11 @@ services:
 
   server:
     build: ./server
+    # 로컬: `docker compose up -d --build`가 build:로 이 이미지를 직접 빌드해서
+    # 이 이름으로 태그함. OCI: GitHub Actions가 이 이름으로 미리 빌드해 GHCR에
+    # 올려두고, OCI는 `docker compose pull`로 받기만 함(OCI 무료 티어는 램이
+    # 작아서 서버에서 직접 빌드하면 느리거나 OOM 위험 — 빌드는 CI 러너에서).
+    image: ghcr.io/dpclfk/work-check-server:latest
     container_name: work-check-server
     restart: unless-stopped
     env_file:
@@ -39,7 +44,7 @@ services:
       # 실제로는 UTC 기준으로 동작해 한국시간이랑 9시간 밀림.
       TZ: Asia/Seoul
     ports:
-      - '3000:3000'
+      - '3030:3030'
     depends_on:
       mysql:
         condition: service_healthy
