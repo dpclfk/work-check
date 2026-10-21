@@ -54,12 +54,15 @@ jobs:
             ghcr.io/dpclfk/work-check-server:latest
             ghcr.io/dpclfk/work-check-server:${{ github.sha }}
 
+      # remote_path는 반드시 상대경로(./)여야 함 — rrsync가 command=에 적힌
+      # 디렉터리로 이미 chdir 해서 들어가 있는 상태라, 여기서 절대경로를 또
+      # 보내면 경로가 겹쳐 중복됨(rrsync 공식 문서에 명시된 제약)
       - name: docker-compose.yml을 OCI에 rsync
         uses: burnett01/rsync-deployments@7.0.1
         with:
           switches: -avz
           path: docker-compose.yml
-          remote_path: /var/www/work-check/
+          remote_path: ./
           remote_host: ${{ secrets.OCI_HOST }}
           remote_user: ${{ secrets.OCI_USER }}
           remote_key: ${{ secrets.OCI_COMPOSE_SSH_KEY }}
@@ -96,12 +99,13 @@ jobs:
           npm ci
           npm run build
 
+      # remote_path는 상대경로(./) — 이유는 위 build_and_push의 같은 주석 참고
       - name: rsync로 OCI nginx 서빙 경로에 업로드
         uses: burnett01/rsync-deployments@7.0.1
         with:
           switches: -avzr --delete
           path: web/dist/
-          remote_path: /var/www/work-check-web/
+          remote_path: ./
           remote_host: ${{ secrets.OCI_HOST }}
           remote_user: ${{ secrets.OCI_USER }}
           remote_key: ${{ secrets.OCI_WEB_SSH_KEY }}
