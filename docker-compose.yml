@@ -8,7 +8,12 @@ services:
     container_name: work-check-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: password
+      # ${DB_PASSWORD}는 docker-compose.yml과 같은 디렉터리의 .env(server/.env가
+      # 아니라 루트의 .env — Compose 자체의 변수치환용 파일, git에 안 올라감)에서
+      # 읽어옴. 로컬 개발은 그 파일이 없어도 되게 기본값 'password' 유지
+      # OCI는 이 .env에 server/.env의 DB_PASSWORD와 똑같은 값을 넣어둬야
+      # 서버 컨테이너가 쓰는 비밀번호랑 MySQL의 실제 root 비밀번호가 일치함.
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
       MYSQL_DATABASE: work_check
       TZ: Asia/Seoul
     ports:
