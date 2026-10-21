@@ -81,9 +81,9 @@ export class ReminderService {
 
       for (const task of dueTasks) {
         this.logger.log(
-          `[알림] "${task.name}" (userId=${userId}) 미완료 - 디스코드 + 앱 푸시로 알림 전송`,
+          `[알림] (userId=${userId}) 미완료 - 디스코드 + 앱 푸시로 알림 전송`,
         );
-        const summary = `${task.name} 아직 완료하지 않았어요! (주기: ${task.cycleType})`;
+        const summary = `아직 완료되지 않은 할 일이 있습니다.`;
 
         await Promise.all([
           setting?.discordAlarm

@@ -130,6 +130,14 @@ type Row =
   | { type: 'sub'; key: string; label: string; collapsed: boolean }
   | { type: 'task'; key: string; task: Task };
 
+type TaskFilter = 'all' | 'completed' | 'incomplete';
+
+const FILTER_OPTIONS: { value: TaskFilter; label: string }[] = [
+  { value: 'all', label: '전체보기' },
+  { value: 'completed', label: '완료된 할일 보기' },
+  { value: 'incomplete', label: '미완료된 할 일 보기' },
+];
+
 export function TaskListScreen() {
   const { data: tasks = [], isRefetching, refetch } = useTasksQuery();
   const { data: mainCategories = [] } = useMainCategoriesQuery();
@@ -148,6 +156,8 @@ export function TaskListScreen() {
   const [editValidationError, setEditValidationError] = useState<string | null>(null);
   // 접힌 그룹의 key 모음(메인/서브 카테고리 둘 다 이 Set 하나로 관리) — 기본은 전부 펼침
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // 전체/완료/미완료 필터 — 기본은 전체보기
+  const [filter, setFilter] = useState<TaskFilter>('all');
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((prev) => {
@@ -174,10 +184,18 @@ export function TaskListScreen() {
     }
   }
 
+  // 전체/완료/미완료 필터 적용 — 아래 그룹핑이 이 배열 기준으로 돌기 때문에,
+  // 필터링으로 한 서브카테고리의 할 일이 전부 걸러지면 그 서브카테고리(그리고
+  // 그 서브카테고리가 마지막 남은 자식이었던 메인카테고리까지)도 자동으로
+  // 접기 목록에서 사라짐(g.tasks.length > 0 필터가 그대로 적용돼서)
+  const filteredTasks = tasks.filter((task) =>
+    filter === 'all' ? true : filter === 'completed' ? task.isCompleted : !task.isCompleted,
+  );
+
   // 할 일 목록을 메인카테고리 > 서브카테고리 > 할 일로 묶어서 FlatList용 평면 행으로 변환
   const tasksBySubId = new Map<number, Task[]>();
   const uncategorizedTasks: Task[] = [];
-  for (const task of tasks) {
+  for (const task of filteredTasks) {
     if (task.subCategoryId != null) {
       const list = tasksBySubId.get(task.subCategoryId) ?? [];
       list.push(task);
@@ -358,6 +376,26 @@ export function TaskListScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <View className="mb-3 flex-row flex-wrap gap-2">
+        {FILTER_OPTIONS.map((opt) => (
+          <TouchableOpacity
+            key={opt.value}
+            className={`rounded-lg px-3 py-1.5 ${
+              filter === opt.value ? 'bg-indigo-700' : 'border border-[#d1d5db] bg-white'
+            }`}
+            onPress={() => setFilter(opt.value)}
+          >
+            <Text
+              className={`text-[13px] font-semibold ${
+                filter === opt.value ? 'text-white' : 'text-[#374151]'
+              }`}
+            >
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 
@@ -433,19 +471,16 @@ export function TaskListScreen() {
         {editError && <Text className="mb-2 text-[13px] text-red-600">{editError}</Text>}
         <View className="mt-1 flex-row gap-2">
           <TouchableOpacity
-            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2"
+            className="flex-1 items-center rounded-md bg-emerald-600 py-2"
             onPress={() => saveEdit(task.id)}
             disabled={updateMutation.isPending}
           >
-            <Text className="text-[13px] font-semibold text-[#374151]">
+            <Text className="text-[13px] font-semibold text-white">
               {updateMutation.isPending ? '저장 중...' : '저장'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2"
-            onPress={cancelEdit}
-          >
-            <Text className="text-[13px] font-semibold text-[#374151]">취소</Text>
+          <TouchableOpacity className="flex-1 items-center rounded-md bg-red-600 py-2" onPress={cancelEdit}>
+            <Text className="text-[13px] font-semibold text-white">취소</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -509,7 +544,11 @@ export function TaskListScreen() {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       contentContainerClassName="p-4 gap-2"
       ListHeaderComponent={createForm}
-      ListEmptyComponent={<Text className="mt-8 text-center text-[#6b7280]">등록된 할 일이 없습니다.</Text>}
+      ListEmptyComponent={
+        <Text className="mt-8 text-center text-[#6b7280]">
+          {tasks.length === 0 ? '등록된 할 일이 없습니다.' : '조건에 맞는 할 일이 없습니다.'}
+        </Text>
+      }
       renderItem={({ item: row }) => {
         if (row.type === 'main') {
           return (

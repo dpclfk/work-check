@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buildTimezoneOptions, detectLocalTimezone } from '../utils/timezones';
 import { useProfileQuery, useUpdateProfileMutation } from '../queries/profile';
+import { useDisableDeviceAlarmMutation, useEnableDeviceAlarmMutation } from '../queries/devices';
+import { pushTokenStore } from '../notifications/pushTokenStore';
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const message = (err as any)?.response?.data?.message;
@@ -20,6 +22,11 @@ export function SettingsScreen() {
   const [showTimezoneList, setShowTimezoneList] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
+  const enableDeviceAlarmMutation = useEnableDeviceAlarmMutation();
+  const disableDeviceAlarmMutation = useDisableDeviceAlarmMutation();
+  const [deviceAlarmEnabled, setDeviceAlarmEnabled] = useState(false);
+  const [deviceAlarmError, setDeviceAlarmError] = useState<string | null>(null);
+
   // 서버에서 프로필을 처음 받아온 시점(혹은 갱신된 시점)에 폼의 로컬 편집 state로 복사
   useEffect(() => {
     if (!profile) return;
@@ -27,6 +34,31 @@ export function SettingsScreen() {
     setDiscordAlarm(profile.discordAlarm);
     setTimezone(profile.timezone);
   }, [profile]);
+
+  // 이 기기 알림 토글의 초기 상태 — 서버가 아니라 로컬(pushTokenStore)에 저장된
+  // 토큰 유무로 판단함(기기별 상태라 프로필 응답엔 안 들어있음)
+  useEffect(() => {
+    pushTokenStore.get().then((token) => setDeviceAlarmEnabled(!!token));
+  }, []);
+
+  const deviceAlarmPending = enableDeviceAlarmMutation.isPending || disableDeviceAlarmMutation.isPending;
+
+  const handleToggleDeviceAlarm = () => {
+    setDeviceAlarmError(null);
+    if (deviceAlarmEnabled) {
+      disableDeviceAlarmMutation.mutate(undefined, { onSuccess: () => setDeviceAlarmEnabled(false) });
+      return;
+    }
+    enableDeviceAlarmMutation.mutate(undefined, {
+      onSuccess: (token) => {
+        if (token) {
+          setDeviceAlarmEnabled(true);
+        } else {
+          setDeviceAlarmError('알림 권한이 없거나 이 기기에서 푸시 등록을 지원하지 않습니다.');
+        }
+      },
+    });
+  };
 
   const handleSave = () => {
     setSavedMessage(null);
@@ -103,6 +135,27 @@ export function SettingsScreen() {
         <Text className="mt-1 text-xs text-[#9ca3af]">
           웹훅을 등록해뒀어도 이게 꺼져있으면 알림이 안 갑니다.
         </Text>
+
+        <Text className="mb-1.5 mt-4 text-[13px] font-semibold text-[#374151]">기기 알림</Text>
+        <TouchableOpacity
+          className="flex-row items-center gap-2"
+          onPress={handleToggleDeviceAlarm}
+          disabled={deviceAlarmPending}
+        >
+          <View
+            className={`h-[18px] w-[18px] rounded border ${
+              deviceAlarmEnabled ? 'border-indigo-700 bg-indigo-700' : 'border-[#d1d5db] bg-white'
+            }`}
+          />
+          <Text className="text-[13px] font-semibold text-[#374151]">
+            {deviceAlarmPending ? '처리 중...' : '이 기기 알림 받기'}
+          </Text>
+        </TouchableOpacity>
+        <Text className="mt-1 text-xs text-[#9ca3af]">
+          디스코드 알림이 가끔 안 올 때를 대비한 이 기기로의 푸시 알림입니다. 꺼두면 이 기기의 알림
+          등록(토큰)이 서버에서 삭제됩니다.
+        </Text>
+        {deviceAlarmError && <Text className="mt-1 text-[13px] text-red-600">{deviceAlarmError}</Text>}
 
         <Text className="mb-1.5 mt-4 text-[13px] font-semibold text-[#374151]">타임존</Text>
         <TouchableOpacity

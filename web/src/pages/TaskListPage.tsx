@@ -105,14 +105,21 @@ const DEFAULT_FORM: CreateTaskInput = {
 const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
 const buttonClass =
   'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
-// 추가/수정은 앱의 "추가" 버튼과 같은 색, 완료는 완료 뱃지와 같은 색(emerald),
-// 삭제는 빨간색 — 나머지(켜기/끄기, 저장, 취소)는 기존 중립 버튼 그대로
+// 추가/수정은 앱의 "추가" 버튼과 같은 색, 완료·저장은 완료 뱃지와 같은 색(emerald),
+// 삭제·취소는 빨간색 — 끄기/켜기만 기존 중립 버튼 그대로
 const primaryButtonClass =
   'whitespace-nowrap rounded-lg bg-indigo-700 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-indigo-800';
 const completeButtonClass =
   'whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-emerald-700';
 const deleteButtonClass =
   'whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-red-700';
+// 완료/미완료 필터 탭 — 선택된 탭만 "추가" 버튼과 같은 indigo로 채움
+const filterButtonClass = (active: boolean) =>
+  `whitespace-nowrap rounded-lg px-3 py-1.5 text-sm hover:cursor-pointer ${
+    active
+      ? 'bg-indigo-700 text-white hover:bg-indigo-800'
+      : 'border border-gray-300 bg-white hover:bg-gray-100'
+  }`;
 // 카테고리:제목 = 3:7 비율. min-w-0 없으면 flex item의 암묵적 min-width:auto 때문에
 // 긴 텍스트가 선택됐을 때 비율이 깨짐(실제로 겪었던 버그)
 const categorySelectClass = `flex-[3] min-w-0 ${fieldClass}`;
@@ -134,6 +141,8 @@ interface MainGroup {
   subGroups: TaskGroup[];
 }
 
+type TaskFilter = 'all' | 'completed' | 'incomplete';
+
 export function TaskListPage() {
   const { data: tasks = [], isLoading: loading } = useTasksQuery();
   const { data: mainCategories = [] } = useMainCategoriesQuery();
@@ -152,6 +161,8 @@ export function TaskListPage() {
   const [editValidationError, setEditValidationError] = useState<string | null>(null);
   // 접힌 그룹의 key 모음(메인/서브 카테고리 둘 다 이 Set 하나로 관리) — 기본은 전부 펼침
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // 전체/완료/미완료 필터 — 기본은 전체보기
+  const [filter, setFilter] = useState<TaskFilter>('all');
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((prev) => {
@@ -171,11 +182,19 @@ export function TaskListPage() {
     { label: '미분류', subs: subCategories.filter((sub) => sub.mainCategoryId == null) },
   ].filter((group) => group.subs.length > 0);
 
+  // 전체/완료/미완료 필터 적용 — 아래 그룹핑이 이 배열 기준으로 돌기 때문에,
+  // 필터링으로 한 서브카테고리의 할 일이 전부 걸러지면 그 서브카테고리(그리고
+  // 그 서브카테고리가 마지막 남은 자식이었던 메인카테고리까지)도 자동으로
+  // 접기 목록에서 사라짐(group.tasks.length > 0 필터가 그대로 적용돼서)
+  const filteredTasks = tasks.filter((task) =>
+    filter === 'all' ? true : filter === 'completed' ? task.isCompleted : !task.isCompleted,
+  );
+
   // 할 일 목록을 메인카테고리 > 서브카테고리 > 할 일로 묶음. 할 일이 하나도 없는
   // 메인/서브카테고리는 접기 UI에 아예 안 보이게 걸러냄(빈 그룹 안 보여줌)
   const tasksBySubId = new Map<number, Task[]>();
   const uncategorizedTasks: Task[] = [];
-  for (const task of tasks) {
+  for (const task of filteredTasks) {
     if (task.subCategoryId != null) {
       const list = tasksBySubId.get(task.subCategoryId) ?? [];
       list.push(task);
@@ -362,11 +381,11 @@ export function TaskListPage() {
                 type="button"
                 onClick={() => saveEdit(task.id)}
                 disabled={updateMutation.isPending}
-                className={buttonClass}
+                className={completeButtonClass}
               >
                 {updateMutation.isPending ? '저장 중...' : '저장'}
               </button>
-              <button type="button" onClick={cancelEdit} className={buttonClass}>
+              <button type="button" onClick={cancelEdit} className={deleteButtonClass}>
                 취소
               </button>
             </div>
@@ -528,6 +547,26 @@ export function TaskListPage() {
       </form>
       {formError && <p className="text-sm text-red-600">{formError}</p>}
 
+      <div className="mb-4 flex gap-2">
+        <button type="button" onClick={() => setFilter('all')} className={filterButtonClass(filter === 'all')}>
+          전체보기
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('completed')}
+          className={filterButtonClass(filter === 'completed')}
+        >
+          완료된 할일 보기
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('incomplete')}
+          className={filterButtonClass(filter === 'incomplete')}
+        >
+          미완료된 할 일 보기
+        </button>
+      </div>
+
       {loading ? (
         <p>불러오는 중...</p>
       ) : (
@@ -584,7 +623,11 @@ export function TaskListPage() {
             </div>
           )}
 
-          {tasks.length === 0 && <p>등록된 할 일이 없습니다.</p>}
+          {tasks.length === 0 ? (
+            <p>등록된 할 일이 없습니다.</p>
+          ) : (
+            filteredTasks.length === 0 && <p>조건에 맞는 할 일이 없습니다.</p>
+          )}
         </div>
       )}
     </PageContainer>

@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { MainCategory, SubCategory } from '../api/categories';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { PageContainer } from '../components/PageContainer';
 import {
   useCreateMainCategoryMutation,
@@ -19,19 +20,13 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-/** 삭제 전 하위 항목까지 같이 지울지 물어봄 — OK면 같이 삭제, 취소면 분리(null)만 */
-function confirmDeleteSubItems(target: string): boolean {
-  return window.confirm(
-    `${target}를 삭제합니다.\n\n확인 — 하위 항목까지 함께 삭제\n취소 — 이 카테고리만 삭제하고 하위 항목은 유지(분리)`,
-  );
-}
-
 const fieldClass = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
-const buttonClass =
-  'whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:cursor-pointer hover:bg-gray-100';
-// 추가/수정은 앱의 "추가" 버튼과 같은 색, 삭제는 빨간색 — 저장/취소는 기존 중립 버튼 그대로
+// 추가/수정은 앱의 "추가" 버튼과 같은 색, 저장은 완료 버튼과 같은 색(emerald),
+// 삭제·취소는 빨간색 — 켜기/끄기 같은 중립 버튼은 카테고리 화면엔 없음
 const primaryButtonClass =
   'whitespace-nowrap rounded-lg bg-indigo-700 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-indigo-800';
+const saveButtonClass =
+  'whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-emerald-700';
 const deleteButtonClass =
   'whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:cursor-pointer hover:bg-red-700';
 
@@ -58,6 +53,12 @@ export function CategoriesPage() {
   const [editingSubMainId, setEditingSubMainId] = useState<string>('');
   // 접힌 메인카테고리 그룹의 key 모음(할 일 목록의 접기와 동일한 패턴) — 기본은 전부 펼침
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // 삭제 확인 대기 중인 카테고리 — window.confirm(취소/확인 2분기)으로는
+  // "분리"/"함께삭제" 3지선다를 못 나타내서 ConfirmDialog로 대체(앱의
+  // Alert.alert 3버튼과 동일한 UX)
+  const [pendingDelete, setPendingDelete] = useState<
+    { type: 'main'; category: MainCategory } | { type: 'sub'; category: SubCategory } | null
+  >(null);
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((prev) => {
@@ -111,10 +112,7 @@ export function CategoriesPage() {
     );
   };
 
-  const handleRemoveMain = (category: MainCategory) => {
-    const deleteSubItems = confirmDeleteSubItems(`메인 카테고리 "${category.name}"`);
-    removeMainMutation.mutate({ id: category.id, deleteSubItems });
-  };
+  const handleRemoveMain = (category: MainCategory) => setPendingDelete({ type: 'main', category });
 
   const startEditSub = (category: SubCategory) => {
     setEditingSubId(category.id);
@@ -136,9 +134,17 @@ export function CategoriesPage() {
     );
   };
 
-  const handleRemoveSub = (category: SubCategory) => {
-    const deleteSubItems = confirmDeleteSubItems(`서브 카테고리 "${category.name}"`);
-    removeSubMutation.mutate({ id: category.id, deleteSubItems });
+  const handleRemoveSub = (category: SubCategory) => setPendingDelete({ type: 'sub', category });
+
+  // ConfirmDialog에서 실제로 선택했을 때만 호출 — deleteSubItems=false(분리)/true(함께삭제)
+  const confirmDelete = (deleteSubItems: boolean) => {
+    if (!pendingDelete) return;
+    if (pendingDelete.type === 'main') {
+      removeMainMutation.mutate({ id: pendingDelete.category.id, deleteSubItems });
+    } else {
+      removeSubMutation.mutate({ id: pendingDelete.category.id, deleteSubItems });
+    }
+    setPendingDelete(null);
   };
 
   // 서브카테고리를 메인카테고리별로 묶음(할 일 목록과 동일한 패턴) — 서브가
@@ -177,10 +183,10 @@ export function CategoriesPage() {
             autoFocus
             className={`flex-1 ${fieldClass}`}
           />
-          <button type="button" onClick={() => saveEditSub(category.id)} className={buttonClass}>
+          <button type="button" onClick={() => saveEditSub(category.id)} className={saveButtonClass}>
             저장
           </button>
-          <button type="button" onClick={() => setEditingSubId(null)} className={buttonClass}>
+          <button type="button" onClick={() => setEditingSubId(null)} className={deleteButtonClass}>
             취소
           </button>
         </div>
@@ -199,6 +205,12 @@ export function CategoriesPage() {
       )}
     </li>
   );
+
+  const pendingDeleteLabel = pendingDelete
+    ? pendingDelete.type === 'main'
+      ? `메인 카테고리 "${pendingDelete.category.name}"`
+      : `서브 카테고리 "${pendingDelete.category.name}"`
+    : '';
 
   return (
     <PageContainer>
@@ -238,10 +250,10 @@ export function CategoriesPage() {
                         autoFocus
                         className={`flex-1 ${fieldClass}`}
                       />
-                      <button type="button" onClick={() => saveEditMain(category.id)} className={buttonClass}>
+                      <button type="button" onClick={() => saveEditMain(category.id)} className={saveButtonClass}>
                         저장
                       </button>
-                      <button type="button" onClick={() => setEditingMainId(null)} className={buttonClass}>
+                      <button type="button" onClick={() => setEditingMainId(null)} className={deleteButtonClass}>
                         취소
                       </button>
                     </div>
@@ -315,6 +327,18 @@ export function CategoriesPage() {
           </section>
         </>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`${pendingDeleteLabel} 삭제`}
+        message="하위 항목을 어떻게 할까요?"
+        onCancel={() => setPendingDelete(null)}
+        actions={[
+          { label: '취소', onClick: () => setPendingDelete(null) },
+          { label: '이 카테고리만 삭제(하위 유지)', onClick: () => confirmDelete(false) },
+          { label: '하위 항목도 함께 삭제', onClick: () => confirmDelete(true), variant: 'danger' },
+        ]}
+      />
     </PageContainer>
   );
 }

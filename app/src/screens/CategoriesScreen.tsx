@@ -172,16 +172,16 @@ export function CategoriesScreen() {
               autoFocus
             />
             <TouchableOpacity
-              className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+              className="rounded-md bg-emerald-600 px-2.5 py-1.5"
               onPress={() => saveEditSub(category.id)}
             >
-              <Text className="text-xs font-semibold text-[#374151]">저장</Text>
+              <Text className="text-xs font-semibold text-white">저장</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+              className="rounded-md bg-red-600 px-2.5 py-1.5"
               onPress={() => setEditingSubId(null)}
             >
-              <Text className="text-xs font-semibold text-[#374151]">취소</Text>
+              <Text className="text-xs font-semibold text-white">취소</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -252,16 +252,16 @@ export function CategoriesScreen() {
                 autoFocus
               />
               <TouchableOpacity
-                className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+                className="rounded-md bg-emerald-600 px-2.5 py-1.5"
                 onPress={() => saveEditMain(category.id)}
               >
-                <Text className="text-xs font-semibold text-[#374151]">저장</Text>
+                <Text className="text-xs font-semibold text-white">저장</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="rounded-md border border-[#e5e7eb] bg-white px-2.5 py-1.5"
+                className="rounded-md bg-red-600 px-2.5 py-1.5"
                 onPress={() => setEditingMainId(null)}
               >
-                <Text className="text-xs font-semibold text-[#374151]">취소</Text>
+                <Text className="text-xs font-semibold text-white">취소</Text>
               </TouchableOpacity>
             </View>
           ) : (
