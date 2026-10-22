@@ -79,19 +79,26 @@ export class ReminderService {
       // 디스코드 알림이 가끔 안 올 때를 대비해, 같은 내용을 앱 푸시로도 같이 보냄
       const deviceTokens = await this.devicesService.findAllTokens(userId);
 
-      for (const task of dueTasks) {
-        this.logger.log(
-          `[알림] (userId=${userId}) 미완료 - 디스코드 + 앱 푸시로 알림 전송`,
-        );
-        const summary = `아직 완료되지 않은 할 일이 있습니다.`;
+      this.logger.log(
+        `[알림] (userId=${userId}) 미완료 ${dueTasks.length}건 - 디스코드 + 앱 푸시로 알림 전송`,
+      );
 
-        await Promise.all([
-          setting?.discordAlarm
-            ? this.discordService.sendMessage(setting.discordRoom, `**${summary}**`)
-            : Promise.resolve(),
-          this.expoPushService.sendToTokens(deviceTokens, '할 일 알림', `${summary}`),
-        ]);
-      }
+      // 할일 목록을 보낼지 메세지만 보낼지 고민중
+      // const taskList = dueTasks.map((task) => `- ${task.name}`).join('\n');
+      // const discordMessage = `아직 완료되지 않은 할 일이 있습니다.`;
+      // const pushBody =
+      //   dueTasks.length === 1
+      //     ? `${dueTasks[0].name}이(가) 아직 완료되지 않았어요.`
+      //     : `${dueTasks.length}개가 아직 완료되지 않았어요: ${dueTasks.map((t) => t.name).join(', ')}`;
+      
+      const pushMessage = `현재 시간까지 완료 해야할 일 중 ${dueTasks.length}개의 완료되지 않은 할 일이 있습니다.`
+
+      await Promise.all([
+        setting?.discordAlarm
+          ? this.discordService.sendMessage(setting.discordRoom, pushMessage)
+          : Promise.resolve(),
+        this.expoPushService.sendToTokens(deviceTokens, '할 일 알림', pushMessage),
+      ]);
     }
   }
 }

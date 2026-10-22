@@ -62,7 +62,7 @@ export class TasksService {
       this.taskRepository.find({
         where: { userId },
         relations: ['subCategory', 'subCategory.mainCategory'],
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'ASC' },
       }),
       this.getUserTimezone(userId),
     ]);
@@ -149,7 +149,7 @@ export class TasksService {
     const [task, timezone] = await Promise.all([this.findOne(userId, id), this.getUserTimezone(userId)]);
     const completions = await this.completionRepository.find({
       where: { task: { id: task.id } },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'ASC' },
     });
     if (timezone === KST_TIMEZONE) return completions;
     // completeTime도 한국시간으로 통일 저장되므로, 조회 응답에서만 유저 타임존으로 보여줌
