@@ -24,7 +24,7 @@ export class MainCategoriesService {
   }
 
   findAll(userId: number) {
-    return this.mainCategoryRepository.find({ where: { userId }, order: { createdAt: 'DESC' } });
+    return this.mainCategoryRepository.find({ where: { userId }, order: { createdAt: 'ASC' } });
   }
 
   async findOne(userId: number, id: number) {

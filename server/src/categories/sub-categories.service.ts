@@ -29,7 +29,7 @@ export class SubCategoriesService {
   }
 
   findAll(userId: number) {
-    return this.subCategoryRepository.find({ where: { userId }, order: { createdAt: 'DESC' } });
+    return this.subCategoryRepository.find({ where: { userId }, order: { createdAt: 'ASC' } });
   }
 
   async findOne(userId: number, id: number) {

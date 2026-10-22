@@ -1,9 +1,9 @@
 import './global.css';
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { TaskListScreen } from './src/screens/TaskListScreen';
@@ -39,26 +39,35 @@ function AppContent() {
   }, [isAuthenticated]);
 
   if (!isReady) return null; // 저장된 토큰 확인 중 (짧은 순간이라 스피너 없이 빈 화면)
-  if (!isAuthenticated) return <LoginScreen />;
 
+  // 로그인 화면/인증된 화면 전체를 여기 한 곳에서만 SafeAreaView로 감쌈 —
+  // 안전 영역(노치, 홈 인디케이터 등) 처리를 이 최상위 한 곳에서 전부
+  // 끝내고, 그 안의 Gnb/LoginScreen 등은 전부 평범한 View로 둬서 안전
+  // 영역을 중복으로 신경 쓸 일이 없게 함(기본 edges=전체 적용)
   return (
-    <View className="flex-1 bg-[#f5f6f8]">
-      {updateInfo?.available && updateInfo.latestVersion && updateInfo.releaseUrl && (
-        <UpdateBanner
-          latestVersion={updateInfo.latestVersion}
-          releaseUrl={updateInfo.releaseUrl}
-          onDismiss={() => setUpdateInfo(null)}
-        />
-      )}
-      <Gnb activeView={view} onNavigate={setView} />
-      {view === 'categories' ? (
-        <CategoriesScreen />
-      ) : view === 'settings' ? (
-        <SettingsScreen />
+    <SafeAreaView className="flex-1 bg-[#f5f6f8]">
+      {!isAuthenticated ? (
+        <LoginScreen />
       ) : (
-        <TaskListScreen />
+        <>
+          {updateInfo?.available && updateInfo.latestVersion && updateInfo.releaseUrl && (
+            <UpdateBanner
+              latestVersion={updateInfo.latestVersion}
+              releaseUrl={updateInfo.releaseUrl}
+              onDismiss={() => setUpdateInfo(null)}
+            />
+          )}
+          <Gnb activeView={view} onNavigate={setView} />
+          {view === 'categories' ? (
+            <CategoriesScreen />
+          ) : view === 'settings' ? (
+            <SettingsScreen />
+          ) : (
+            <TaskListScreen />
+          )}
+        </>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

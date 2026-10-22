@@ -3,6 +3,9 @@ import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 
+// 안전 영역(노치, 홈 인디케이터 등) 처리는 App.tsx 최상위 SafeAreaView
+// 한 곳에서 전부 끝남 — Gnb 자신은 그냥 평범한 View(헤더 내용물)로만 있음
+
 export type AppView = 'tasks' | 'categories' | 'settings';
 
 const NAV_ITEMS: { view: AppView; label: string }[] = [
@@ -23,7 +26,7 @@ export function Gnb({ activeView, onNavigate }: GnbProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <SafeAreaView className="bg-white">
+    <View className="bg-white">
       <View className="flex-row items-center justify-between border-b border-[#f3f4f6] bg-white px-4 py-2.5">
         <TouchableOpacity className="p-1" onPress={() => setMenuOpen(true)}>
           <Text className="text-[22px] text-[#111827]">☰</Text>
@@ -41,6 +44,8 @@ export function Gnb({ activeView, onNavigate }: GnbProps) {
         </View>
       </View>
 
+      {/* Modal은 화면 트리 밖에 따로 그려져서 App.tsx의 SafeAreaView가 안 먹힘 —
+          여기선 SafeAreaView가 계속 필요함(안 그러면 드롭다운이 상태바 아래로 감) */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable className="flex-1 bg-black/30" onPress={() => setMenuOpen(false)}>
           <SafeAreaView>
@@ -70,6 +75,6 @@ export function Gnb({ activeView, onNavigate }: GnbProps) {
           </SafeAreaView>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
